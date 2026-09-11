@@ -29,6 +29,9 @@ jobs:
         with:
           workspaces: . -> target
 
+      - name: Auto-format Code
+        run: cargo fmt --all
+
       - name: Run Test Suite
         run: cargo test --release
 
@@ -39,8 +42,18 @@ jobs:
         run: worker-build --release
 
       - name: Deploy to Cloudflare Workers
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
         uses: cloudflare/wrangler-action@v3
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
+
+      - name: Notice if secrets missing
+        if: ${{ env.CLOUDFLARE_API_TOKEN == '' }}
+        run: |
+          echo "::warning::CLOUDFLARE_API_TOKEN is not configured in GitHub Secrets yet. Skipping deployment step until secret is added."
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

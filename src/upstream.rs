@@ -44,7 +44,7 @@ impl UpstreamClient {
         // Enforce strict upstream URL to prevent SSRF
         let endpoint_url = format!("{}/chat/completions", self.base_url);
 
-        let mut headers = Headers::new();
+        let headers = Headers::new();
         headers
             .set("Content-Type", "application/json")
             .map_err(|e| GatewayError::Internal(e.to_string()))?;

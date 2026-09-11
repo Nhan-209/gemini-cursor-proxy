@@ -1,4 +1,4 @@
-use crate::accounts::{AccountHealth, AccountRuntimeState};
+use crate::accounts::AccountRuntimeState;
 use crate::config::AccountConfig;
 use crate::error::GatewayError;
 use std::collections::HashMap;
