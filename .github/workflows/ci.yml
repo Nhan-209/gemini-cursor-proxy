@@ -1,0 +1,44 @@
+name: CI Quality Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate-and-build:
+    name: Lint, Test & Worker Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust Stable Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Unit and Integration Tests
+        run: cargo test --verbose
+
+      - name: Cargo Check for WebAssembly
+        run: cargo check --target wasm32-unknown-unknown --release
+
+      - name: Install worker-build
+        run: cargo install worker-build --locked
+
+      - name: Build Cloudflare Worker Wasm Bundle
+        run: worker-build --release

@@ -1,0 +1,23 @@
+# Rust build artifacts
+target/
+build/
+dist/
+**/*.rs.bk
+
+# Cloudflare & Wrangler artifacts
+.wrangler/
+worker/
+node_modules/
+
+# Environment and Secret files
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db

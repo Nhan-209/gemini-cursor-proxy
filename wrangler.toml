@@ -1,0 +1,22 @@
+name = "gemini-cursor-proxy"
+main = "build/worker/shim.mjs"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[build]
+command = "worker-build --release"
+
+[vars]
+PRIMARY_MODEL = "gemini-3.8-flash"
+THINKING_LEVEL = "high"
+FORCE_MODEL = "true"
+BASE_PATH = "/v1"
+CONFIG_VERSION = "1"
+
+# Sensitive secrets must be configured via Cloudflare Dashboard or `wrangler secret put`:
+# - PROXY_TOKEN
+# - GEMINI_KEY_01
+# - GEMINI_KEY_02
+# - GEMINI_KEY_03
+# - GEMINI_KEY_04
+# - GEMINI_KEY_05

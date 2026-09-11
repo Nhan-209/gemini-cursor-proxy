@@ -1,0 +1,24 @@
+[package]
+name = "gemini-cursor-proxy"
+version = "0.1.0"
+edition = "2021"
+authors = ["Senior Rust & Cloudflare Workers Engineer"]
+description = "OpenAI-compatible gateway for Cursor IDE powered by Google Gemini API on Cloudflare Workers"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+worker = "0.8.5"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+async-trait = "0.1"
+futures-util = "0.3"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
