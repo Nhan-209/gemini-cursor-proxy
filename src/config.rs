@@ -167,53 +167,22 @@ pub struct AppConfig {
 }
 
 fn default_accounts() -> Vec<AccountConfig> {
-    vec![
-        AccountConfig {
-            id: "p01".to_string(),
-            secret_name: "GEMINI_KEY_01".to_string(),
-            quota_domain: "project-a".to_string(),
-            enabled: true,
-            rpm_limit: Some(15),
-            tpm_limit: Some(1_000_000),
-            rpd_limit: Some(1_500),
-        },
-        AccountConfig {
-            id: "p02".to_string(),
-            secret_name: "GEMINI_KEY_02".to_string(),
-            quota_domain: "project-b".to_string(),
-            enabled: true,
-            rpm_limit: Some(15),
-            tpm_limit: Some(1_000_000),
-            rpd_limit: Some(1_500),
-        },
-        AccountConfig {
-            id: "p03".to_string(),
-            secret_name: "GEMINI_KEY_03".to_string(),
-            quota_domain: "project-c".to_string(),
-            enabled: true,
-            rpm_limit: Some(15),
-            tpm_limit: Some(1_000_000),
-            rpd_limit: Some(1_500),
-        },
-        AccountConfig {
-            id: "p04".to_string(),
-            secret_name: "GEMINI_KEY_04".to_string(),
-            quota_domain: "project-d".to_string(),
-            enabled: true,
-            rpm_limit: Some(15),
-            tpm_limit: Some(1_000_000),
-            rpd_limit: Some(1_500),
-        },
-        AccountConfig {
-            id: "p05".to_string(),
-            secret_name: "GEMINI_KEY_05".to_string(),
-            quota_domain: "project-e".to_string(),
-            enabled: true,
-            rpm_limit: Some(15),
-            tpm_limit: Some(1_000_000),
-            rpd_limit: Some(1_500),
-        },
-    ]
+    (1..=20)
+        .map(|i| {
+            let id = format!("p{:02}", i);
+            let secret_name = format!("GEMINI_KEY_{:02}", i);
+            let quota_domain = format!("project-{:02}", i);
+            AccountConfig {
+                id,
+                secret_name,
+                quota_domain,
+                enabled: true,
+                rpm_limit: Some(15),
+                tpm_limit: Some(1_000_000),
+                rpd_limit: Some(1_500),
+            }
+        })
+        .collect()
 }
 
 impl Default for AppConfig {

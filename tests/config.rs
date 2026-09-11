@@ -11,9 +11,9 @@ fn test_default_config_values() {
     assert!(cfg.model.force_model);
     assert_eq!(cfg.retry.max_attempts, 3);
     assert_eq!(cfg.cooldown.after_429_ms, 30_000);
-    assert_eq!(cfg.accounts.len(), 5);
+    assert_eq!(cfg.accounts.len(), 20);
     assert_eq!(cfg.accounts[0].id, "p01");
-    assert_eq!(cfg.accounts[0].quota_domain, "project-a");
+    assert_eq!(cfg.accounts[0].quota_domain, "project-01");
 }
 
 #[test]
