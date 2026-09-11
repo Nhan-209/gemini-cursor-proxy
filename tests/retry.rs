@@ -1,4 +1,4 @@
-use gemini_cursor_proxy::retry::{
+use gemini_openai_gateway::retry::{
     classify_upstream_response, parse_retry_after, ErrorClassification, FirstByteGuard,
 };
 use std::collections::HashMap;

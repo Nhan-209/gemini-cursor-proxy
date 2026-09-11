@@ -1,5 +1,5 @@
-use gemini_cursor_proxy::config::ModelConfig;
-use gemini_cursor_proxy::models::{build_model_list, normalize_request, ChatCompletionRequest};
+use gemini_openai_gateway::config::ModelConfig;
+use gemini_openai_gateway::models::{build_model_list, normalize_request, ChatCompletionRequest};
 use std::collections::HashMap;
 
 #[test]

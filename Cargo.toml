@@ -1,9 +1,9 @@
 [package]
-name = "gemini-cursor-proxy"
+name = "gemini-openai-gateway"
 version = "0.1.0"
 edition = "2021"
 authors = ["Senior Rust & Cloudflare Workers Engineer"]
-description = "OpenAI-compatible gateway for Cursor IDE powered by Google Gemini API on Cloudflare Workers"
+description = "Universal OpenAI-compatible API Gateway for Google Gemini on Cloudflare Workers (Cursor, Cline, Roo Code, Continue, Aider, OpenAI SDK)"
 license = "MIT"
 
 [lib]

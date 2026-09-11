@@ -63,7 +63,7 @@ impl UpstreamClient {
             .set("Authorization", &format!("Bearer {}", api_key))
             .map_err(|e| GatewayError::Internal(e.to_string()))?;
         headers
-            .set("User-Agent", "gemini-cursor-proxy/0.1.0")
+            .set("User-Agent", "gemini-openai-gateway/0.1.0")
             .map_err(|e| GatewayError::Internal(e.to_string()))?;
 
         let mut init = RequestInit::new();

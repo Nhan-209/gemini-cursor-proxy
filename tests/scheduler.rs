@@ -1,5 +1,5 @@
-use gemini_cursor_proxy::config::AccountConfig;
-use gemini_cursor_proxy::scheduler::{AccountScheduler, LruQuotaScheduler};
+use gemini_openai_gateway::config::AccountConfig;
+use gemini_openai_gateway::scheduler::{AccountScheduler, LruQuotaScheduler};
 
 fn sample_accounts() -> Vec<AccountConfig> {
     vec![
@@ -78,7 +78,7 @@ fn test_cooldown_expiration_restores_health() {
     let _ = scheduler.select_account(12_000).expect("Should succeed");
     let states = scheduler.get_account_states();
     let p01 = states.iter().find(|a| a.id == "p01").unwrap();
-    assert_eq!(p01.health, gemini_cursor_proxy::accounts::AccountHealth::Healthy);
+    assert_eq!(p01.health, gemini_openai_gateway::accounts::AccountHealth::Healthy);
 }
 
 #[test]

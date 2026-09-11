@@ -1,4 +1,4 @@
-use gemini_cursor_proxy::models::ChatCompletionRequest;
+use gemini_openai_gateway::models::ChatCompletionRequest;
 
 #[test]
 fn test_chat_completion_request_deserialization() {

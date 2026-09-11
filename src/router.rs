@@ -35,7 +35,7 @@ pub async fn handle_request(
             .with_status(200)
             .with_headers(headers)
             .from_bytes(
-                r#"{"status":"healthy","service":"gemini-cursor-proxy","version":"0.1.0"}"#.as_bytes().to_vec(),
+                r#"{"status":"healthy","service":"gemini-openai-gateway","version":"0.1.0"}"#.as_bytes().to_vec(),
             )
             .map_err(|e| GatewayError::Internal(e.to_string()))?;
         return Ok(response);

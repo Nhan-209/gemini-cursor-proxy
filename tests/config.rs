@@ -1,4 +1,4 @@
-use gemini_cursor_proxy::config::AppConfig;
+use gemini_openai_gateway::config::AppConfig;
 
 #[test]
 fn test_default_config_values() {
@@ -83,7 +83,7 @@ fn test_invalid_toml_returns_error() {
 #[test]
 fn test_parse_keys_pool_plain_text() {
     let pool_str = "AIzaSyKey001, AIzaSyKey002\nAIzaSyKey003;AIzaSyKey004";
-    let accounts = gemini_cursor_proxy::config::parse_keys_pool(pool_str);
+    let accounts = gemini_openai_gateway::config::parse_keys_pool(pool_str);
     assert_eq!(accounts.len(), 4);
     assert_eq!(accounts[0].direct_key.as_deref(), Some("AIzaSyKey001"));
     assert_eq!(accounts[1].direct_key.as_deref(), Some("AIzaSyKey002"));
@@ -97,7 +97,7 @@ fn test_parse_keys_pool_json_objects() {
         {"key": "AIzaSyKeyA", "project": "proj-alpha"},
         {"key": "AIzaSyKeyB", "domain": "proj-beta"}
     ]"#;
-    let accounts = gemini_cursor_proxy::config::parse_keys_pool(json_str);
+    let accounts = gemini_openai_gateway::config::parse_keys_pool(json_str);
     assert_eq!(accounts.len(), 2);
     assert_eq!(accounts[0].direct_key.as_deref(), Some("AIzaSyKeyA"));
     assert_eq!(accounts[0].quota_domain, "proj-alpha");

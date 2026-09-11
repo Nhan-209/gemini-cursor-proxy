@@ -1,4 +1,4 @@
-use gemini_cursor_proxy::auth::{constant_time_eq, verify_bearer_token};
+use gemini_openai_gateway::auth::{constant_time_eq, verify_bearer_token};
 
 #[test]
 fn test_valid_bearer_token() {

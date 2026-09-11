@@ -1,17 +1,34 @@
-# Gemini Cursor Proxy (Rust on Cloudflare Workers)
+# Gemini OpenAI Gateway (Rust on Cloudflare Workers)
 
-A production-grade, high-performance, OpenAI-compatible API Gateway built with **Rust** running at the edge on **Cloudflare Workers** (`workers-rs`). It acts as a resilient proxy between **Cursor IDE** and the **Google Gemini API** (powered by `gemini-3.8-flash` with native thinking/reasoning).
+A production-grade, ultra-low-latency, universal **OpenAI-compatible API Gateway** built in **Rust** running globally at the edge on **Cloudflare Workers** (`workers-rs`).
 
-Designed from the ground up to be completely safe for public GitHub hosting, featuring multi-account scheduling with quota domain awareness, first-byte safe retries, and zero-buffering Server-Sent Events (SSE) streaming.
+It acts as a resilient proxy connecting any AI client (**Cursor, Cline, Roo Code, Continue.dev, Aider, Windsurf, OpenAI SDK, LangChain**) to **Google Gemini API** (`gemini-3.8-flash` with native thinking & `gemini-3.5-flash-lite` with an automatic Smart Router).
+
+Designed to be hosted publicly on GitHub with zero risk of secret leakage, multi-account rotation supporting 100–1,000+ API keys in a single secret, quota-domain isolation, first-byte safe retries, and zero-buffering SSE streaming.
 
 ---
 
-## Architecture Overview
+## Supported Tools & IDEs
+
+| Tool / Client | Support Status | Protocol / Endpoint |
+|---|:---:|---|
+| **Cursor IDE** | ✅ Native | `https://<YOUR-WORKER>/v1` |
+| **Cline / Roo Code** (VS Code) | ✅ Native | OpenAI-compatible provider |
+| **Continue.dev** (VS Code / JetBrains) | ✅ Native | OpenAI provider |
+| **Aider** (CLI Pair Programmer) | ✅ Native | `OPENAI_API_BASE` |
+| **Windsurf / Codeium** | ✅ Native | OpenAI Custom Endpoint |
+| **OpenAI Python & Node.js SDK** | ✅ Native | `base_url` override |
+| **LangChain / LlamaIndex / LiteLLM** | ✅ Native | Standard OpenAI Base URL |
+| **cURL / HTTP Clients** | ✅ Native | Standard SSE & JSON REST |
+
+---
+
+## System Architecture
 
 ```
-Cursor IDE (Client)
+Client (Cursor, Cline, Continue, Aider, OpenAI SDK)
       │
-      │ HTTPS (POST /v1/chat/completions, GET /v1/models)
+      │ HTTPS (POST /v1/chat/completions, POST /v1/responses, GET /v1/models)
       │ Header: Authorization: Bearer <PROXY_TOKEN>
       ▼
 Cloudflare Worker (Edge / Rust `workers-rs`)
@@ -19,63 +36,52 @@ Cloudflare Worker (Edge / Rust `workers-rs`)
       ├── 1. Security & Auth Guard
       │      - Validates Bearer token using constant-time comparison
       │
-      ├── 2. Body Parser & Normalizer
-      │      - Enforces max_body_bytes (10MB limit)
-      │      - Resolves model aliases to `gemini-3.8-flash`
-      │      - Injects native `reasoning_effort: "high"`
+      ├── 2. Smart Router & Task Classifier (Active)
+      │      - Automatically classifies user task using `gemini-3.5-flash-lite`
+      │      - EASY ➔ `gemini-3.5-flash-lite` (lightning fast, quota efficient)
+      │      - NORMAL ➔ `gemini-3.8-flash` (medium reasoning effort)
+      │      - HARD ➔ `gemini-3.8-flash` (native thinking = HIGH)
       │
       ├── 3. Account & Quota Scheduler (LRU + Quota Domain)
-      │      - Filters out cooling-down accounts
-      │      - Isolates quota domains (shared projects)
-      │      - Selects healthy candidate using Least-Recently-Used
+      │      - Rotates keys across accounts/projects
+      │      - Isolates quota domains (if 1 key hits 429, cools down entire project)
+      │      - Supports 100 - 1,000+ keys via `GEMINI_KEYS_POOL`
       │
       ├── 4. Upstream Gateway (Google Gemini OpenAI Endpoint)
       │      - URL locked to `https://generativelanguage.googleapis.com/v1beta/openai`
-      │      - Injects resolved GEMINI_KEY from Cloudflare Secrets
+      │      - Resolves API key securely from Cloudflare Secrets
       │      - Strips sensitive headers
       │
       ├── 5. First-Byte Aware Retry Loop
-      │      - Retries retryable errors (429, 5xx, network) before first byte
+      │      - Retries retryable errors (429, 5xx, network drop) before first byte
       │      - Strictly prevents replay if `first_byte_sent == true`
       │
       └── 6. End-to-End SSE Streaming
-             - Direct streaming to Cursor without buffering into memory
+             - Direct streaming to client without buffering in memory
 ```
 
 ---
 
-## Why Rust & Why Cloudflare Workers?
+## Model & Smart Routing Policy
 
-1. **Ultra-low Latency & Memory Footprint**: Rust compiles to WebAssembly (`wasm32-unknown-unknown`), running inside Cloudflare V8 isolates with near-zero cold starts and tiny memory usage (<15MB), staying well beneath the 128MB limit.
-2. **Global Edge Distribution**: Requests from Cursor hit the nearest Cloudflare PoP (Point of Presence) globally, terminating TLS and proxying directly to Google's backbone network.
-3. **Memory Safety & Concurrency**: Type-safe concurrency via `std::sync::RwLock` eliminates race conditions and null-pointer exceptions without a garbage collection runtime.
-
----
-
-## Model & Native Thinking Configuration
-
-- **Primary Model**: `gemini-3.8-flash` (GA September 2026, optimized for autonomous coding, architecture, and multi-file tasks).
-- **Native Reasoning**: Mapped directly via `reasoning_effort: "high"` on Google's OpenAI-compatible endpoint. No artificial prompting tricks (e.g. "think step by step") are injected.
-- **Model Alias Policy**:
+- **Primary Model**: `gemini-3.8-flash` (GA September 2026, optimized for coding, debugging, architecture).
+- **Classifier & Lite Model**: `gemini-3.5-flash-lite` (Ultra-fast, up to 350 tokens/s).
+- **Supported Model Aliases** (automatically normalized):
   - `auto` ➔ `gemini-3.8-flash`
-  - `gpt-4o` ➔ `gemini-3.8-flash`
-  - `gpt-4.1` ➔ `gemini-3.8-flash`
-  - `gemini-3.8-flash` ➔ `gemini-3.8-flash`
+  - `gpt-4o`, `gpt-4.1`, `o1`, `o3-mini` ➔ `gemini-3.8-flash`
+  - `gpt-4o-mini` ➔ `gemini-3.5-flash-lite`
+  - `claude-3-5-sonnet`, `claude-3-7-sonnet` ➔ `gemini-3.8-flash`
+  - `deepseek-chat`, `deepseek-reasoner` ➔ `gemini-3.8-flash`
 
 ---
 
-## Secret Separation Architecture (Public Repo Safe)
-
-This repository is designed to be hosted publicly on GitHub without any risk of credential leakage. Three strict tiers of secrets are maintained:
+## Secret Separation (Public Repo Safe)
 
 | Secret Tier | Location | Contents | Access / Scope |
-|-------------|----------|----------|----------------|
-| **Tier A: Public Repo** | GitHub Public Repo | Source code, `wrangler.toml` (vars only), `.env.example`, CI/CD workflows | Visible to everyone |
+|---|---|---|---|
+| **Tier A: Public Repo** | GitHub Public Repo | Source code, `wrangler.toml`, `.env.example`, CI/CD workflows | Publicly visible |
 | **Tier B: CI/CD Secrets** | GitHub Actions Secrets | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | Used solely for deploying worker |
-| **Tier C: Runtime Secrets** | Cloudflare Worker Secrets | `PROXY_TOKEN`, `GEMINI_KEY_01` .. `GEMINI_KEY_05` | Only accessible inside Worker runtime |
-
-> [!IMPORTANT]
-> Google Gemini API keys and Proxy tokens are NEVER stored in GitHub Actions, NEVER injected into build binaries, and NEVER committed to git.
+| **Tier C: Runtime Secrets** | Cloudflare Worker Secrets | `PROXY_TOKEN`, `GEMINI_KEYS_POOL` / `GEMINI_KEY_01`..`20` | Only inside Worker runtime |
 
 ---
 
@@ -83,201 +89,107 @@ This repository is designed to be hosted publicly on GitHub without any risk of 
 
 ### 1. Configure Cloudflare Secrets
 
-Run the following commands using the Cloudflare Wrangler CLI (or configure them in the Cloudflare Dashboard under **Workers & Pages > gemini-cursor-proxy > Settings > Variables > Secrets**):
+In your Cloudflare Dashboard under **Workers & Pages > gemini-openai-gateway > Settings > Variables and Secrets**:
 
-#### Option A: Bulk Keys Pool (Recommended for 10 - 1,000+ API Keys)
-Instead of creating dozens or hundreds of individual variables, put all your keys into a single secret:
-```bash
-# 1. Set your custom proxy authentication token
-npx wrangler secret put PROXY_TOKEN
-
-# 2. Put 10, 100, or 1,000+ Gemini API keys into GEMINI_KEYS_POOL
-# Supported formats: newline-separated, comma-separated, or JSON array
-npx wrangler secret put GEMINI_KEYS_POOL
+#### Option A: Bulk Keys Pool (Recommended for 10 - 1,000+ Keys in 1 Secret)
+Add a secret named **`GEMINI_KEYS_POOL`** containing all your keys (newline-separated, comma-separated, or JSON):
+```text
+AIzaSyKey1...
+AIzaSyKey2...
+AIzaSyKey1000...
 ```
+Also add **`PROXY_TOKEN`** (your secret password for client tools, e.g. `sk-my-gateway-token`).
 
-#### Option B: Individual API Keys (Up to 20 keys with auto-discovery)
-```bash
-# 1. Set your custom proxy authentication token
-npx wrangler secret put PROXY_TOKEN
-
-# 2. Set individual Google Gemini API keys (automatically auto-detected by Worker)
-npx wrangler secret put GEMINI_KEY_01
-npx wrangler secret put GEMINI_KEY_02
-npx wrangler secret put GEMINI_KEY_03
-# ... up to GEMINI_KEY_20 without any code or config edits
-```
+#### Option B: Individual Keys (Up to 20 keys with auto-discovery)
+- `PROXY_TOKEN`: Your secret client password.
+- `GEMINI_KEY_01` .. `GEMINI_KEY_20`: Automatically detected by the worker.
 
 ### 2. Configure GitHub Secrets for CI/CD Deployment
 
-In your GitHub repository, go to **Settings > Secrets and variables > Actions** and add:
-1. `CLOUDFLARE_API_TOKEN`: Cloudflare API Token with `Edit Cloudflare Workers` permission.
-2. `CLOUDFLARE_ACCOUNT_ID`: Your Cloudflare Account ID (found on the right sidebar of the Cloudflare Workers dashboard).
+In GitHub repository: **Settings > Secrets and variables > Actions**:
+1. `CLOUDFLARE_API_TOKEN`: Cloudflare API Token (with *Edit Cloudflare Workers* template).
+2. `CLOUDFLARE_ACCOUNT_ID`: Your Cloudflare Account ID.
 
 ### 3. Deploy via GitHub Actions
 
-Because your local machine may not have the Rust WebAssembly toolchain installed, deployment runs automatically via GitHub Actions:
-
+Pushing to `main` automatically formats, tests, compiles Wasm, and deploys:
 ```bash
-git add .
-git commit -m "feat: setup gemini cursor proxy"
 git push origin main
 ```
 
-The GitHub Actions workflow `.github/workflows/deploy.yml` will automatically:
-1. Validate formatting (`cargo fmt`)
-2. Run test suites (`cargo test`)
-3. Compile the Rust WebAssembly binary using `worker-build`
-4. Deploy to your Cloudflare account
-
 ---
 
-## Configuring Cursor IDE
+## Client Setup Guides
 
-Open Cursor IDE and navigate to **Settings > Cursor Settings > Models**:
+### 1. Cursor IDE
+1. Open **Cursor Settings > Models**.
+2. Under **OpenAI API**:
+   - **OpenAI API Key**: `<YOUR_PROXY_TOKEN>`
+   - **Override OpenAI Base URL**: `https://gemini-openai-gateway.<subdomain>.workers.dev/v1`
+3. Add model: `gemini-3.8-flash` (or use `gpt-4o`).
 
-1. **OpenAI API Key**: Enter your `PROXY_TOKEN` (the secret you set in Cloudflare, **NOT** your Gemini key).
-2. **Override OpenAI Base URL**: Set to your Cloudflare Worker URL:
-   ```
-   https://gemini-cursor-proxy.<your-subdomain>.workers.dev/v1
-   ```
-   *(Or your custom domain e.g. `https://api.yourdomain.com/v1`)*
-3. **Model**: Set to `gemini-3.8-flash` (or leave as `gpt-4o` / `auto` since the proxy automatically normalizes aliases).
+### 2. Cline / Roo Code (VS Code Extension)
+1. Open Cline / Roo Code Settings.
+2. Select API Provider: **OpenAI Compatible**.
+3. **Base URL**: `https://gemini-openai-gateway.<subdomain>.workers.dev/v1`
+4. **API Key**: `<YOUR_PROXY_TOKEN>`
+5. **Model ID**: `gemini-3.8-flash` (or `auto`).
 
----
-
-## Verifying the Proxy
-
-### 1. Test Model List (`GET /v1/models`)
-
-```bash
-curl https://gemini-cursor-proxy.<your-subdomain>.workers.dev/v1/models \
-  -H "Authorization: Bearer YOUR_PROXY_TOKEN"
-```
-
-Expected response:
+### 3. Continue.dev (`config.json`)
 ```json
 {
-  "object": "list",
-  "data": [
+  "models": [
     {
-      "id": "gemini-3.8-flash",
-      "object": "model",
-      "created": 1726000000,
-      "owned_by": "google"
+      "title": "Gemini 3.8 Flash (via Gateway)",
+      "provider": "openai",
+      "model": "gemini-3.8-flash",
+      "apiBase": "https://gemini-openai-gateway.<subdomain>.workers.dev/v1",
+      "apiKey": "YOUR_PROXY_TOKEN"
     }
   ]
 }
 ```
 
-### 2. Test Non-Streaming Chat Completion (`POST /v1/chat/completions`)
+### 4. Aider (Terminal Pair Programmer)
+```bash
+export OPENAI_API_BASE=https://gemini-openai-gateway.<subdomain>.workers.dev/v1
+export OPENAI_API_KEY=YOUR_PROXY_TOKEN
+aider --model gemini-3.8-flash
+```
+
+### 5. OpenAI Python SDK
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="YOUR_PROXY_TOKEN",
+    base_url="https://gemini-openai-gateway.<subdomain>.workers.dev/v1",
+)
+
+response = client.chat.completions.create(
+    model="gemini-3.8-flash",
+    messages=[{"role": "user", "content": "Write a high-performance Rust actor"}],
+    stream=True,
+)
+
+for chunk in response:
+    content = chunk.choices[0].delta.content
+    if content:
+        print(content, end="", flush=True)
+```
+
+---
+
+## Verification via cURL
 
 ```bash
-curl https://gemini-cursor-proxy.<your-subdomain>.workers.dev/v1/chat/completions \
+# Test Models endpoint:
+curl https://gemini-openai-gateway.<subdomain>.workers.dev/v1/models \
+  -H "Authorization: Bearer YOUR_PROXY_TOKEN"
+
+# Test Streaming Chat Completions:
+curl -N https://gemini-openai-gateway.<subdomain>.workers.dev/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_PROXY_TOKEN" \
-  -d '{
-    "model": "gemini-3.8-flash",
-    "messages": [
-      {"role": "user", "content": "Explain rust ownership in one sentence."}
-    ],
-    "stream": false
-  }'
+  -d '{"model":"gemini-3.8-flash","messages":[{"role":"user","content":"Hi!"}],"stream":true}'
 ```
-
-### 3. Test Streaming Chat Completion (SSE)
-
-```bash
-curl -N https://gemini-cursor-proxy.<your-subdomain>.workers.dev/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_PROXY_TOKEN" \
-  -d '{
-    "model": "gemini-3.8-flash",
-    "messages": [
-      {"role": "user", "content": "Write a quick rust test."}
-    ],
-    "stream": true
-  }'
-```
-
----
-
-## Adding, Disabling, or Modifying Accounts
-
-### Adding Account `P06` without Changing Rust Code:
-
-1. Add the secret to Cloudflare:
-   ```bash
-   npx wrangler secret put GEMINI_KEY_06
-   ```
-2. In `wrangler.toml` (or Cloudflare Environment Variable `ACCOUNTS_CONFIG_TOML`), add the account declaration:
-   ```toml
-   [[accounts]]
-   id = "p06"
-   secret_name = "GEMINI_KEY_06"
-   quota_domain = "project-f"
-   enabled = true
-   ```
-3. Commit and push to GitHub. The scheduler will automatically pick up `p06` without any modifications to the Rust router or core scheduler logic.
-
-### Disabling an Account:
-Simply set `enabled = false` for that account in the configuration.
-
----
-
-## First-Byte Semantics & Safe Streaming
-
-The gateway implements a strict state machine to prevent response corruption in Cursor:
-
-```
-[Request Started] ──► [Upstream Headers Received] ──► [First Byte Sent] ──► [Streaming Active]
-       │                          │                            │
-       ▼                          ▼                            ▼
-  Retry Allowed              Retry Allowed             RETRY STRICTLY FORBIDDEN
-  (Switch Account)           (Switch Account)          (Safely close stream on abort)
-```
-
-- **Pre-first-byte**: If Gemini returns a 429, 500, 502, 503, or connection drop, the gateway automatically marks that account/domain in cooldown and retries with another eligible account up to 3 attempts.
-- **Post-first-byte**: Once the first byte has been dispatched to Cursor, the gateway will **NEVER** replay or retry the request. Replaying a request mid-stream would send duplicated JSON chunks and corrupt Cursor's editor state.
-
----
-
-## Quota Domain Awareness
-
-A single Google Cloud project may have multiple API keys, but they share the same rate-limit quota bucket.
-
-In `gemini-cursor-proxy`, accounts declare a `quota_domain`:
-- If `p01` and `p02` both belong to `project-a`:
-- When `p01` receives a `429 Too Many Requests`, the scheduler cools down the **entire `project-a` domain**.
-- The next request will skip `p02` immediately and route to `project-b` (e.g. `p03`), preventing wasted attempts against an already-throttled quota bucket.
-
----
-
-## Smart Router & Task Classification (Active)
-
-The proxy features an integrated, high-speed **Smart Router** driven by **`gemini-3.5-flash-lite`**:
-- **EASY Tasks** (typos, formatting, simple renames, small questions): Routed to `gemini-3.5-flash-lite` without extra reasoning overhead for lightning-fast latency and maximum quota efficiency.
-- **NORMAL Tasks** (standard feature implementation, bug fixes): Routed to `gemini-3.8-flash` with medium reasoning effort.
-- **HARD Tasks** (architecture design, multi-file refactoring, autonomous agentic workflows): Routed to `gemini-3.8-flash` with native `reasoning_effort = "high"`.
-- **Zero-risk Fallback**: If classification is ambiguous or fails, the router automatically defaults safely to `gemini-3.8-flash (thinking high)`.
-- Can be configured or toggled via `SMART_ROUTER_ENABLED = "true"` / `"false"` in `wrangler.toml`.
-
----
-
-## Troubleshooting
-
-| Symptom | Likely Cause | Solution |
-|---------|--------------|----------|
-| `401 Unauthorized` | Invalid or missing Bearer token in Cursor | Ensure Cursor's OpenAI API Key matches `PROXY_TOKEN`. |
-| `503 All upstream accounts exhausted` | All configured Gemini keys hit 429 or are in cooldown | Add more Gemini projects or wait for cooldown period (default 30s) to expire. |
-| `502 Upstream Error` | Cloudflare Secret for an account is missing | Check that `GEMINI_KEY_01` .. `GEMINI_KEY_05` are set in Cloudflare Secrets. |
-| Stream drops mid-flight | Network timeout or Cloudflare wall-clock limit reached | Cursor will safely receive the completed chunk; no duplicate stream is replayed. |
-
----
-
-## Rollback Procedure
-
-If an unintended regression occurs, roll back instantly using Cloudflare's built-in deployment history:
-1. In Cloudflare Dashboard, go to **Workers & Pages > gemini-cursor-proxy > Deployments**.
-2. Select the previous stable deployment and click **Rollback**.
-3. Alternatively, run `git revert HEAD` and push to `main` to let GitHub Actions deploy the previous commit.

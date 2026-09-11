@@ -48,7 +48,15 @@ impl Default for ModelConfig {
         let mut aliases = HashMap::new();
         aliases.insert("auto".to_string(), "gemini-3.8-flash".to_string());
         aliases.insert("gpt-4o".to_string(), "gemini-3.8-flash".to_string());
+        aliases.insert("gpt-4o-mini".to_string(), "gemini-3.5-flash-lite".to_string());
         aliases.insert("gpt-4.1".to_string(), "gemini-3.8-flash".to_string());
+        aliases.insert("o1".to_string(), "gemini-3.8-flash".to_string());
+        aliases.insert("o3-mini".to_string(), "gemini-3.8-flash".to_string());
+        aliases.insert("claude-3-5-sonnet".to_string(), "gemini-3.8-flash".to_string());
+        aliases.insert("claude-3-7-sonnet".to_string(), "gemini-3.8-flash".to_string());
+        aliases.insert("deepseek-chat".to_string(), "gemini-3.8-flash".to_string());
+        aliases.insert("deepseek-reasoner".to_string(), "gemini-3.8-flash".to_string());
+        aliases.insert("gemini-3.5-flash-lite".to_string(), "gemini-3.5-flash-lite".to_string());
         aliases.insert("gemini-3.8-flash".to_string(), "gemini-3.8-flash".to_string());
 
         Self {
