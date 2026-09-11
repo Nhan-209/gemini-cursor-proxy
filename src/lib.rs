@@ -1,5 +1,6 @@
 pub mod accounts;
 pub mod auth;
+pub mod classifier;
 pub mod config;
 pub mod error;
 pub mod metrics;

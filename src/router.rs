@@ -60,11 +60,8 @@ pub async fn handle_request(
 
     if path == models_endpoint && method == Method::Get {
         handle_get_models(config)
-    } else if path == chat_endpoint && method == Method::Post {
+    } else if (path == chat_endpoint || path == responses_endpoint) && method == Method::Post {
         handle_chat_completions(&mut req, &env, config, scheduler).await
-    } else if path == responses_endpoint && method == Method::Post {
-        // Prepared abstraction for future Responses API
-        Err(GatewayError::BadRequest("Responses API is not yet implemented. Please use /v1/chat/completions".to_string()))
     } else {
         Err(GatewayError::NotFound(format!("Route {} {} not found", method, path)))
     }
@@ -117,8 +114,58 @@ async fn handle_chat_completions(
 
     let is_streaming = chat_req.stream.unwrap_or(false);
 
-    // 3. Normalize request (model resolution + native thinking level injection)
-    let normalized_req = normalize_request(chat_req, &config.model);
+    // 3. Smart Task Classification & Model Routing (Gemini 3.5 Flash-Lite Classifier)
+    let normalized_req = if config.smart_router.enabled {
+        let user_query = crate::classifier::SmartRouter::extract_user_query(&chat_req.messages);
+        let classification = if !user_query.is_empty() {
+            if let Ok(acc) = scheduler.select_account(crate::current_timestamp_ms()) {
+                if let Ok(key) = UpstreamClient::resolve_api_key(env, &acc) {
+                    let client = UpstreamClient::new(&config.upstream);
+                    crate::classifier::SmartRouter::classify(
+                        &user_query,
+                        &client,
+                        &key,
+                        &config.smart_router.classifier_model,
+                    )
+                    .await
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if let Some(ref res) = classification {
+            if res.confidence >= config.smart_router.min_confidence {
+                let mut req = chat_req;
+                match res.route {
+                    crate::classifier::TaskDifficulty::Easy => {
+                        req.model = config.smart_router.lite_model.clone();
+                        req.reasoning_effort = None;
+                    }
+                    crate::classifier::TaskDifficulty::Normal => {
+                        req.model = config.smart_router.primary_model.clone();
+                        req.reasoning_effort = Some("medium".to_string());
+                    }
+                    crate::classifier::TaskDifficulty::Hard => {
+                        req.model = config.smart_router.primary_model.clone();
+                        req.reasoning_effort = Some("high".to_string());
+                    }
+                }
+                req
+            } else {
+                normalize_request(chat_req, &config.model)
+            }
+        } else {
+            normalize_request(chat_req, &config.model)
+        }
+    } else {
+        normalize_request(chat_req, &config.model)
+    };
+
     let target_model = normalized_req.model.clone();
 
     // 4. Re-serialize payload once

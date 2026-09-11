@@ -253,6 +253,17 @@ In `gemini-cursor-proxy`, accounts declare a `quota_domain`:
 
 ---
 
+## Smart Router & Task Classification (Active)
+
+The proxy features an integrated, high-speed **Smart Router** driven by **`gemini-3.5-flash-lite`**:
+- **EASY Tasks** (typos, formatting, simple renames, small questions): Routed to `gemini-3.5-flash-lite` without extra reasoning overhead for lightning-fast latency and maximum quota efficiency.
+- **NORMAL Tasks** (standard feature implementation, bug fixes): Routed to `gemini-3.8-flash` with medium reasoning effort.
+- **HARD Tasks** (architecture design, multi-file refactoring, autonomous agentic workflows): Routed to `gemini-3.8-flash` with native `reasoning_effort = "high"`.
+- **Zero-risk Fallback**: If classification is ambiguous or fails, the router automatically defaults safely to `gemini-3.8-flash (thinking high)`.
+- Can be configured or toggled via `SMART_ROUTER_ENABLED = "true"` / `"false"` in `wrangler.toml`.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Likely Cause | Solution |

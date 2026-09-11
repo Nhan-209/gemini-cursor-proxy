@@ -239,6 +239,8 @@ pub struct AppConfig {
     #[serde(default)]
     pub model: ModelConfig,
     #[serde(default)]
+    pub smart_router: crate::classifier::SmartRouterConfig,
+    #[serde(default)]
     pub retry: RetryConfig,
     #[serde(default)]
     pub cooldown: CooldownConfig,
@@ -276,6 +278,7 @@ impl Default for AppConfig {
             server: ServerConfig::default(),
             upstream: UpstreamConfig::default(),
             model: ModelConfig::default(),
+            smart_router: crate::classifier::SmartRouterConfig::default(),
             retry: RetryConfig::default(),
             cooldown: CooldownConfig::default(),
             streaming: StreamingConfig::default(),
@@ -299,6 +302,9 @@ impl AppConfig {
         }
         if let Ok(val) = env.var("FORCE_MODEL") {
             self.model.force_model = val.to_string().parse().unwrap_or(self.model.force_model);
+        }
+        if let Ok(val) = env.var("SMART_ROUTER_ENABLED") {
+            self.smart_router.enabled = val.to_string().parse().unwrap_or(self.smart_router.enabled);
         }
         if let Ok(val) = env.var("BASE_PATH") {
             self.server.base_path = val.to_string();
