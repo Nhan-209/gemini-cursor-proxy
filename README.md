@@ -85,17 +85,27 @@ This repository is designed to be hosted publicly on GitHub without any risk of 
 
 Run the following commands using the Cloudflare Wrangler CLI (or configure them in the Cloudflare Dashboard under **Workers & Pages > gemini-cursor-proxy > Settings > Variables > Secrets**):
 
+#### Option A: Bulk Keys Pool (Recommended for 10 - 1,000+ API Keys)
+Instead of creating dozens or hundreds of individual variables, put all your keys into a single secret:
 ```bash
 # 1. Set your custom proxy authentication token
 npx wrangler secret put PROXY_TOKEN
-# Enter your secret token when prompted
 
-# 2. Set your Google Gemini API keys
+# 2. Put 10, 100, or 1,000+ Gemini API keys into GEMINI_KEYS_POOL
+# Supported formats: newline-separated, comma-separated, or JSON array
+npx wrangler secret put GEMINI_KEYS_POOL
+```
+
+#### Option B: Individual API Keys (Up to 20 keys with auto-discovery)
+```bash
+# 1. Set your custom proxy authentication token
+npx wrangler secret put PROXY_TOKEN
+
+# 2. Set individual Google Gemini API keys (automatically auto-detected by Worker)
 npx wrangler secret put GEMINI_KEY_01
 npx wrangler secret put GEMINI_KEY_02
 npx wrangler secret put GEMINI_KEY_03
-npx wrangler secret put GEMINI_KEY_04
-npx wrangler secret put GEMINI_KEY_05
+# ... up to GEMINI_KEY_20 without any code or config edits
 ```
 
 ### 2. Configure GitHub Secrets for CI/CD Deployment

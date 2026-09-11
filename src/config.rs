@@ -134,12 +134,96 @@ impl Default for SecurityConfig {
 pub struct AccountConfig {
     pub id: String,
     pub secret_name: String,
+    #[serde(default)]
+    pub direct_key: Option<String>,
     pub quota_domain: String,
     #[serde(default = "default_enabled")]
     pub enabled: bool,
     pub rpm_limit: Option<u32>,
     pub tpm_limit: Option<u32>,
     pub rpd_limit: Option<u32>,
+}
+
+pub fn parse_keys_pool(raw: &str) -> Vec<AccountConfig> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Vec::new();
+    }
+
+    #[derive(Deserialize)]
+    struct KeyObj {
+        key: String,
+        domain: Option<String>,
+        project: Option<String>,
+    }
+
+    // 1. Try parsing as JSON array of objects [{"key":"...", "domain":"..."}]
+    if trimmed.starts_with('[') {
+        if let Ok(objs) = serde_json::from_str::<Vec<KeyObj>>(trimmed) {
+            return objs
+                .into_iter()
+                .enumerate()
+                .filter(|(_, obj)| !obj.key.trim().is_empty() && obj.key.trim() != "replace_me")
+                .map(|(idx, obj)| {
+                    let key = obj.key.trim().to_string();
+                    let domain = obj
+                        .domain
+                        .or(obj.project)
+                        .unwrap_or_else(|| format!("pool-domain-{:04}", idx + 1));
+                    AccountConfig {
+                        id: format!("pool_{:04}", idx + 1),
+                        secret_name: "GEMINI_KEYS_POOL".to_string(),
+                        direct_key: Some(key),
+                        quota_domain: domain,
+                        enabled: true,
+                        rpm_limit: Some(15),
+                        tpm_limit: Some(1_000_000),
+                        rpd_limit: Some(1_500),
+                    }
+                })
+                .collect();
+        }
+
+        // 2. Try parsing as JSON array of strings ["key1", "key2"]
+        if let Ok(keys) = serde_json::from_str::<Vec<String>>(trimmed) {
+            return keys
+                .into_iter()
+                .enumerate()
+                .filter(|(_, k)| !k.trim().is_empty() && k.trim() != "replace_me")
+                .map(|(idx, k)| {
+                    let key = k.trim().to_string();
+                    AccountConfig {
+                        id: format!("pool_{:04}", idx + 1),
+                        secret_name: "GEMINI_KEYS_POOL".to_string(),
+                        direct_key: Some(key),
+                        quota_domain: format!("pool-domain-{:04}", idx + 1),
+                        enabled: true,
+                        rpm_limit: Some(15),
+                        tpm_limit: Some(1_000_000),
+                        rpd_limit: Some(1_500),
+                    }
+                })
+                .collect();
+        }
+    }
+
+    // 3. Otherwise parse as plain text (separated by newlines, commas, or semicolons)
+    trimmed
+        .split(|c| c == '\n' || c == '\r' || c == ',' || c == ';')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty() && *s != "replace_me")
+        .enumerate()
+        .map(|(idx, key)| AccountConfig {
+            id: format!("pool_{:04}", idx + 1),
+            secret_name: "GEMINI_KEYS_POOL".to_string(),
+            direct_key: Some(key.to_string()),
+            quota_domain: format!("pool-domain-{:04}", idx + 1),
+            enabled: true,
+            rpm_limit: Some(15),
+            tpm_limit: Some(1_000_000),
+            rpd_limit: Some(1_500),
+        })
+        .collect()
 }
 
 fn default_enabled() -> bool {
@@ -175,6 +259,7 @@ fn default_accounts() -> Vec<AccountConfig> {
             AccountConfig {
                 id,
                 secret_name,
+                direct_key: None,
                 quota_domain,
                 enabled: true,
                 rpm_limit: Some(15),

@@ -150,8 +150,8 @@ async fn handle_chat_completions(
             }
         };
 
-        // Resolve API key for chosen account from Cloudflare Secrets
-        let api_key = match UpstreamClient::resolve_api_key(env, &account.secret_name) {
+        // Resolve API key for chosen account (supports both GEMINI_KEYS_POOL and GEMINI_KEY_*)
+        let api_key = match UpstreamClient::resolve_api_key(env, &account) {
             Ok(key) => key,
             Err(e) => {
                 // If key is missing in Cloudflare Secrets, disable account and try next

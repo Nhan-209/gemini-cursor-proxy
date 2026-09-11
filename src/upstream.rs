@@ -14,16 +14,27 @@ impl UpstreamClient {
         }
     }
 
-    pub fn resolve_api_key(env: &worker::Env, secret_name: &str) -> Result<String, GatewayError> {
-        // Look up secret in Cloudflare Secrets first
-        if let Ok(secret) = env.secret(secret_name) {
+    pub fn resolve_api_key(
+        env: &worker::Env,
+        account: &crate::scheduler::AccountSnapshot,
+    ) -> Result<String, GatewayError> {
+        // 1. If account has a direct key from GEMINI_KEYS_POOL, use it directly
+        if let Some(ref direct) = account.direct_key {
+            let val = direct.trim();
+            if !val.is_empty() && val != "replace_me" {
+                return Ok(val.to_string());
+            }
+        }
+
+        // 2. Look up secret in Cloudflare Secrets using secret_name
+        if let Ok(secret) = env.secret(&account.secret_name) {
             let val = secret.to_string();
             if !val.trim().is_empty() && val != "replace_me" {
                 return Ok(val);
             }
         }
-        // Fallback to worker::Env vars (e.g. for .dev.vars in local development)
-        if let Ok(var) = env.var(secret_name) {
+        // 3. Fallback to worker::Env vars (e.g. for .dev.vars in local development)
+        if let Ok(var) = env.var(&account.secret_name) {
             let val = var.to_string();
             if !val.trim().is_empty() && val != "replace_me" {
                 return Ok(val);
@@ -32,7 +43,7 @@ impl UpstreamClient {
 
         Err(GatewayError::Internal(format!(
             "Cloudflare Secret '{}' is missing or unconfigured in Worker runtime",
-            secret_name
+            account.secret_name
         )))
     }
 

@@ -79,3 +79,28 @@ fn test_invalid_toml_returns_error() {
     let res = AppConfig::from_toml_str(invalid_toml);
     assert!(res.is_err());
 }
+
+#[test]
+fn test_parse_keys_pool_plain_text() {
+    let pool_str = "AIzaSyKey001, AIzaSyKey002\nAIzaSyKey003;AIzaSyKey004";
+    let accounts = gemini_cursor_proxy::config::parse_keys_pool(pool_str);
+    assert_eq!(accounts.len(), 4);
+    assert_eq!(accounts[0].direct_key.as_deref(), Some("AIzaSyKey001"));
+    assert_eq!(accounts[1].direct_key.as_deref(), Some("AIzaSyKey002"));
+    assert_eq!(accounts[2].direct_key.as_deref(), Some("AIzaSyKey003"));
+    assert_eq!(accounts[3].direct_key.as_deref(), Some("AIzaSyKey004"));
+}
+
+#[test]
+fn test_parse_keys_pool_json_objects() {
+    let json_str = r#"[
+        {"key": "AIzaSyKeyA", "project": "proj-alpha"},
+        {"key": "AIzaSyKeyB", "domain": "proj-beta"}
+    ]"#;
+    let accounts = gemini_cursor_proxy::config::parse_keys_pool(json_str);
+    assert_eq!(accounts.len(), 2);
+    assert_eq!(accounts[0].direct_key.as_deref(), Some("AIzaSyKeyA"));
+    assert_eq!(accounts[0].quota_domain, "proj-alpha");
+    assert_eq!(accounts[1].direct_key.as_deref(), Some("AIzaSyKeyB"));
+    assert_eq!(accounts[1].quota_domain, "proj-beta");
+}

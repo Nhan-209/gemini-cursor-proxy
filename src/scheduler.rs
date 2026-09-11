@@ -8,6 +8,7 @@ use std::sync::RwLock;
 pub struct AccountSnapshot {
     pub id: String,
     pub secret_name: String,
+    pub direct_key: Option<String>,
     pub quota_domain: String,
 }
 
@@ -94,6 +95,7 @@ impl AccountScheduler for LruQuotaScheduler {
         Ok(AccountSnapshot {
             id: chosen.id.clone(),
             secret_name: chosen.secret_name.clone(),
+            direct_key: chosen.direct_key.clone(),
             quota_domain: chosen.quota_domain.clone(),
         })
     }

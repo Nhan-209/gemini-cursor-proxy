@@ -36,25 +36,23 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     let mut config = AppConfig::default();
     config.apply_env_overrides(&env);
 
-    // 2. Automatically detect which GEMINI_KEY_* secrets are configured in Cloudflare
+    // 2. Resolve accounts: prioritize GEMINI_KEYS_POOL (supports 100 - 1,000+ keys in one secret)
     let active_accounts: Vec<config::AccountConfig> = {
-        let configured: Vec<config::AccountConfig> = config
-            .accounts
-            .iter()
-            .filter(|acc| {
-                if !acc.enabled {
-                    return false;
-                }
-                env.secret(&acc.secret_name).is_ok() || env.var(&acc.secret_name).is_ok()
-            })
-            .cloned()
-            .collect();
+        let pool_val = env
+            .secret("GEMINI_KEYS_POOL")
+            .map(|s| s.to_string())
+            .or_else(|_| env.var("GEMINI_KEYS_POOL").map(|v| v.to_string()))
+            .ok();
 
-        if configured.is_empty() {
-            // Fallback to first 5 accounts if secrets not yet populated
-            config.accounts.iter().take(5).cloned().collect()
+        if let Some(raw_pool) = pool_val {
+            let parsed = config::parse_keys_pool(&raw_pool);
+            if !parsed.is_empty() {
+                parsed
+            } else {
+                resolve_discrete_accounts(&config.accounts, &env)
+            }
         } else {
-            configured
+            resolve_discrete_accounts(&config.accounts, &env)
         }
     };
 
@@ -65,5 +63,25 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     match handle_request(req, env, &config, &scheduler).await {
         Ok(res) => Ok(res),
         Err(gateway_err) => gateway_err.to_worker_response(),
+    }
+}
+
+fn resolve_discrete_accounts(accounts: &[config::AccountConfig], env: &Env) -> Vec<config::AccountConfig> {
+    let configured: Vec<config::AccountConfig> = accounts
+        .iter()
+        .filter(|acc| {
+            if !acc.enabled {
+                return false;
+            }
+            env.secret(&acc.secret_name).is_ok() || env.var(&acc.secret_name).is_ok()
+        })
+        .cloned()
+        .collect();
+
+    if configured.is_empty() {
+        // Fallback to first 5 accounts if secrets not yet populated
+        accounts.iter().take(5).cloned().collect()
+    } else {
+        configured
     }
 }

@@ -6,6 +6,7 @@ fn sample_accounts() -> Vec<AccountConfig> {
         AccountConfig {
             id: "p01".to_string(),
             secret_name: "GEMINI_KEY_01".to_string(),
+            direct_key: None,
             quota_domain: "project-a".to_string(),
             enabled: true,
             rpm_limit: None,
@@ -15,6 +16,7 @@ fn sample_accounts() -> Vec<AccountConfig> {
         AccountConfig {
             id: "p02".to_string(),
             secret_name: "GEMINI_KEY_02".to_string(),
+            direct_key: None,
             quota_domain: "project-a".to_string(), // Shares quota domain with p01
             enabled: true,
             rpm_limit: None,
@@ -24,6 +26,7 @@ fn sample_accounts() -> Vec<AccountConfig> {
         AccountConfig {
             id: "p03".to_string(),
             secret_name: "GEMINI_KEY_03".to_string(),
+            direct_key: None,
             quota_domain: "project-b".to_string(), // Independent quota domain
             enabled: true,
             rpm_limit: None,
@@ -80,17 +83,16 @@ fn test_cooldown_expiration_restores_health() {
 
 #[test]
 fn test_all_accounts_exhausted() {
-    let accounts = vec![
-        AccountConfig {
-            id: "only_one".to_string(),
-            secret_name: "KEY".to_string(),
-            quota_domain: "domain".to_string(),
-            enabled: true,
-            rpm_limit: None,
-            tpm_limit: None,
-            rpd_limit: None,
-        },
-    ];
+    let accounts = vec![AccountConfig {
+        id: "only_one".to_string(),
+        secret_name: "KEY".to_string(),
+        direct_key: None,
+        quota_domain: "domain".to_string(),
+        enabled: true,
+        rpm_limit: None,
+        tpm_limit: None,
+        rpd_limit: None,
+    }];
     let scheduler = LruQuotaScheduler::new(&accounts);
 
     scheduler.report_cooldown("only_one", "Rate limit", 60_000, 1000, "RATE_LIMIT_429");

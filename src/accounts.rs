@@ -12,6 +12,7 @@ pub enum AccountHealth {
 pub struct AccountRuntimeState {
     pub id: String,
     pub secret_name: String,
+    pub direct_key: Option<String>,
     pub quota_domain: String,
     pub enabled: bool,
     pub rpm_limit: Option<u32>,
@@ -39,6 +40,7 @@ impl AccountRuntimeState {
         Self {
             id: cfg.id.clone(),
             secret_name: cfg.secret_name.clone(),
+            direct_key: cfg.direct_key.clone(),
             quota_domain: cfg.quota_domain.clone(),
             enabled: cfg.enabled,
             rpm_limit: cfg.rpm_limit,
