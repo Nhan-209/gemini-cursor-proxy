@@ -104,3 +104,17 @@ fn test_parse_keys_pool_json_objects() {
     assert_eq!(accounts[1].direct_key.as_deref(), Some("AIzaSyKeyB"));
     assert_eq!(accounts[1].quota_domain, "proj-beta");
 }
+
+#[test]
+fn test_parse_keys_pool_resilient_formats() {
+    let raw = r#"[ "AIzaKey1", "AIzaKey2" ]"#;
+    let accounts = gemini_openai_gateway::config::parse_keys_pool(raw);
+    assert_eq!(accounts.len(), 2);
+    assert_eq!(accounts[0].direct_key.as_deref(), Some("AIzaKey1"));
+    assert_eq!(accounts[1].direct_key.as_deref(), Some("AIzaKey2"));
+
+    let single_kv = "GEMINI_KEYS_POOL = AIzaKeySingle";
+    let accounts2 = gemini_openai_gateway::config::parse_keys_pool(single_kv);
+    assert_eq!(accounts2.len(), 1);
+    assert_eq!(accounts2[0].direct_key.as_deref(), Some("AIzaKeySingle"));
+}

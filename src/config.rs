@@ -163,6 +163,45 @@ pub struct AccountConfig {
     pub rpd_limit: Option<u32>,
 }
 
+fn sanitize_token(s: &str) -> Option<String> {
+    let mut val = s.trim();
+    if val.is_empty() {
+        return None;
+    }
+    // If it's a key-value pair e.g. "GEMINI_KEYS_POOL = AIza..." or "key: AIza..."
+    if let Some((_, rhs)) = val.split_once('=') {
+        val = rhs.trim();
+    } else if let Some((lhs, rhs)) = val.split_once(':') {
+        let lhs_lower = lhs.trim().to_lowercase();
+        if lhs_lower.contains("key")
+            || lhs_lower.contains("gemini")
+            || lhs_lower.contains("token")
+            || lhs_lower.contains("pool")
+        {
+            val = rhs.trim();
+        }
+    }
+    // Strip quotes, brackets, braces, commas, semicolons
+    let cleaned = val
+        .trim_matches(|c| {
+            c == '['
+                || c == ']'
+                || c == '{'
+                || c == '}'
+                || c == '"'
+                || c == '\''
+                || c == ','
+                || c == ';'
+        })
+        .trim();
+
+    if cleaned.is_empty() || cleaned == "replace_me" {
+        None
+    } else {
+        Some(cleaned.to_string())
+    }
+}
+
 pub fn parse_keys_pool(raw: &str) -> Vec<AccountConfig> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
@@ -171,7 +210,9 @@ pub fn parse_keys_pool(raw: &str) -> Vec<AccountConfig> {
 
     #[derive(Deserialize)]
     struct KeyObj {
-        key: String,
+        key: Option<String>,
+        api_key: Option<String>,
+        gemini_key: Option<String>,
         domain: Option<String>,
         project: Option<String>,
     }
@@ -179,63 +220,91 @@ pub fn parse_keys_pool(raw: &str) -> Vec<AccountConfig> {
     // 1. Try parsing as JSON array of objects [{"key":"...", "domain":"..."}]
     if trimmed.starts_with('[') {
         if let Ok(objs) = serde_json::from_str::<Vec<KeyObj>>(trimmed) {
-            return objs
+            let res: Vec<AccountConfig> = objs
                 .into_iter()
                 .enumerate()
-                .filter(|(_, obj)| !obj.key.trim().is_empty() && obj.key.trim() != "replace_me")
-                .map(|(idx, obj)| {
-                    let key = obj.key.trim().to_string();
+                .filter_map(|(idx, obj)| {
+                    let raw_key = obj.key.or(obj.api_key).or(obj.gemini_key)?;
+                    let clean = sanitize_token(&raw_key)?;
                     let domain = obj
                         .domain
                         .or(obj.project)
                         .unwrap_or_else(|| format!("pool-domain-{:04}", idx + 1));
-                    AccountConfig {
+                    Some(AccountConfig {
                         id: format!("pool_{:04}", idx + 1),
                         secret_name: "GEMINI_KEYS_POOL".to_string(),
-                        direct_key: Some(key),
+                        direct_key: Some(clean),
                         quota_domain: domain,
                         enabled: true,
                         rpm_limit: Some(15),
                         tpm_limit: Some(1_000_000),
                         rpd_limit: Some(1_500),
-                    }
+                    })
                 })
                 .collect();
+            if !res.is_empty() {
+                return res;
+            }
         }
 
         // 2. Try parsing as JSON array of strings ["key1", "key2"]
         if let Ok(keys) = serde_json::from_str::<Vec<String>>(trimmed) {
-            return keys
+            let res: Vec<AccountConfig> = keys
                 .into_iter()
                 .enumerate()
-                .filter(|(_, k)| !k.trim().is_empty() && k.trim() != "replace_me")
-                .map(|(idx, k)| {
-                    let key = k.trim().to_string();
-                    AccountConfig {
+                .filter_map(|(idx, k)| {
+                    let clean = sanitize_token(&k)?;
+                    Some(AccountConfig {
                         id: format!("pool_{:04}", idx + 1),
                         secret_name: "GEMINI_KEYS_POOL".to_string(),
-                        direct_key: Some(key),
+                        direct_key: Some(clean),
                         quota_domain: format!("pool-domain-{:04}", idx + 1),
                         enabled: true,
                         rpm_limit: Some(15),
                         tpm_limit: Some(1_000_000),
                         rpd_limit: Some(1_500),
-                    }
+                    })
                 })
                 .collect();
+            if !res.is_empty() {
+                return res;
+            }
         }
     }
 
-    // 3. Otherwise parse as plain text (separated by newlines, commas, or semicolons)
+    // 3. Try parsing as a single JSON object {"key": "..."}
+    if trimmed.starts_with('{') {
+        if let Ok(obj) = serde_json::from_str::<KeyObj>(trimmed) {
+            if let Some(raw_key) = obj.key.or(obj.api_key).or(obj.gemini_key) {
+                if let Some(clean) = sanitize_token(&raw_key) {
+                    let domain = obj
+                        .domain
+                        .or(obj.project)
+                        .unwrap_or_else(|| "pool-domain-0001".to_string());
+                    return vec![AccountConfig {
+                        id: "pool_0001".to_string(),
+                        secret_name: "GEMINI_KEYS_POOL".to_string(),
+                        direct_key: Some(clean),
+                        quota_domain: domain,
+                        enabled: true,
+                        rpm_limit: Some(15),
+                        tpm_limit: Some(1_000_000),
+                        rpd_limit: Some(1_500),
+                    }];
+                }
+            }
+        }
+    }
+
+    // 4. Otherwise parse as plain text (separated by newlines, commas, or semicolons)
     trimmed
         .split(|c| c == '\n' || c == '\r' || c == ',' || c == ';')
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty() && *s != "replace_me")
+        .filter_map(sanitize_token)
         .enumerate()
         .map(|(idx, key)| AccountConfig {
             id: format!("pool_{:04}", idx + 1),
             secret_name: "GEMINI_KEYS_POOL".to_string(),
-            direct_key: Some(key.to_string()),
+            direct_key: Some(key),
             quota_domain: format!("pool-domain-{:04}", idx + 1),
             enabled: true,
             rpm_limit: Some(15),

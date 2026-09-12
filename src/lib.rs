@@ -39,13 +39,34 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
 
     // 2. Resolve accounts: prioritize GEMINI_KEYS_POOL (supports 100 - 1,000+ keys in one secret)
     let active_accounts: Vec<config::AccountConfig> = {
-        let pool_val = env
-            .secret("GEMINI_KEYS_POOL")
-            .map(|s| s.to_string())
-            .or_else(|_| env.var("GEMINI_KEYS_POOL").map(|v| v.to_string()))
-            .ok();
+        let pool_names = [
+            "GEMINI_KEYS_POOL",
+            "GEMINI_KEY_POOL",
+            "GEMINI_POOL",
+            "GEMINI_KEYS",
+            "GEMINI_API_KEY",
+            "GEMINI_KEY",
+        ];
 
-        if let Some(raw_pool) = pool_val {
+        let mut found_pool: Option<String> = None;
+        for name in pool_names {
+            if let Ok(s) = env.secret(name) {
+                let v = s.to_string();
+                if !v.trim().is_empty() {
+                    found_pool = Some(v);
+                    break;
+                }
+            }
+            if let Ok(v) = env.var(name) {
+                let s = v.to_string();
+                if !s.trim().is_empty() {
+                    found_pool = Some(s);
+                    break;
+                }
+            }
+        }
+
+        if let Some(raw_pool) = found_pool {
             let parsed = config::parse_keys_pool(&raw_pool);
             if !parsed.is_empty() {
                 parsed

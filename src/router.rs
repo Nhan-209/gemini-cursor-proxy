@@ -31,12 +31,45 @@ pub async fn handle_request(
             ("Content-Type", "application/json"),
             ("Access-Control-Allow-Origin", "*"),
         ]);
+
+        let states = scheduler.get_account_states();
+        let accounts_info: Vec<serde_json::Value> = states
+            .iter()
+            .map(|acc| {
+                let key_preview = if let Some(ref k) = acc.direct_key {
+                    let len = k.len();
+                    if len >= 8 {
+                        format!("{}...{} (len: {})", &k[..4], &k[len - 4..], len)
+                    } else {
+                        format!("*** (len: {})", len)
+                    }
+                } else {
+                    format!("secret: {}", acc.secret_name)
+                };
+                serde_json::json!({
+                    "id": acc.id,
+                    "quota_domain": acc.quota_domain,
+                    "key_preview": key_preview,
+                    "health": format!("{:?}", acc.health),
+                })
+            })
+            .collect();
+
+        let payload = serde_json::json!({
+            "status": "healthy",
+            "service": "gemini-openai-gateway",
+            "version": "0.1.0",
+            "accounts_count": accounts_info.len(),
+            "accounts": accounts_info,
+        });
+
+        let json_bytes = serde_json::to_vec(&payload)
+            .map_err(|e| GatewayError::Internal(e.to_string()))?;
+
         let response = Response::builder()
             .with_status(200)
             .with_headers(headers)
-            .from_bytes(
-                r#"{"status":"healthy","service":"gemini-openai-gateway","version":"0.1.0"}"#.as_bytes().to_vec(),
-            )
+            .from_bytes(json_bytes)
             .map_err(|e| GatewayError::Internal(e.to_string()))?;
         return Ok(response);
     }
