@@ -20,7 +20,7 @@ impl UpstreamClient {
     ) -> Result<String, GatewayError> {
         // 1. If account has a direct key from GEMINI_KEYS_POOL, use it directly
         if let Some(ref direct) = account.direct_key {
-            let val = direct.trim();
+            let val = direct.trim().trim_matches('"').trim_matches('\'').trim();
             if !val.is_empty() && val != "replace_me" {
                 return Ok(val.to_string());
             }
@@ -29,15 +29,17 @@ impl UpstreamClient {
         // 2. Look up secret in Cloudflare Secrets using secret_name
         if let Ok(secret) = env.secret(&account.secret_name) {
             let val = secret.to_string();
-            if !val.trim().is_empty() && val != "replace_me" {
-                return Ok(val);
+            let trimmed = val.trim().trim_matches('"').trim_matches('\'').trim();
+            if !trimmed.is_empty() && trimmed != "replace_me" {
+                return Ok(trimmed.to_string());
             }
         }
         // 3. Fallback to worker::Env vars (e.g. for .dev.vars in local development)
         if let Ok(var) = env.var(&account.secret_name) {
             let val = var.to_string();
-            if !val.trim().is_empty() && val != "replace_me" {
-                return Ok(val);
+            let trimmed = val.trim().trim_matches('"').trim_matches('\'').trim();
+            if !trimmed.is_empty() && trimmed != "replace_me" {
+                return Ok(trimmed.to_string());
             }
         }
 
@@ -52,15 +54,20 @@ impl UpstreamClient {
         api_key: &str,
         body_json: &str,
     ) -> Result<Response, GatewayError> {
-        // Enforce strict upstream URL to prevent SSRF
-        let endpoint_url = format!("{}/chat/completions", self.base_url);
+        let clean_key = api_key.trim().trim_matches('"').trim_matches('\'').trim();
+
+        // Pass key via query param and standard headers for maximum upstream compatibility
+        let endpoint_url = format!("{}/chat/completions?key={}", self.base_url, clean_key);
 
         let headers = Headers::new();
         headers
             .set("Content-Type", "application/json")
             .map_err(|e| GatewayError::Internal(e.to_string()))?;
         headers
-            .set("Authorization", &format!("Bearer {}", api_key))
+            .set("Authorization", &format!("Bearer {}", clean_key))
+            .map_err(|e| GatewayError::Internal(e.to_string()))?;
+        headers
+            .set("x-goog-api-key", clean_key)
             .map_err(|e| GatewayError::Internal(e.to_string()))?;
         headers
             .set("User-Agent", "gemini-openai-gateway/0.1.0")

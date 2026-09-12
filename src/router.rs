@@ -197,14 +197,29 @@ async fn handle_chat_completions(
             }
         };
 
-        // Resolve API key for chosen account (supports both GEMINI_KEYS_POOL and GEMINI_KEY_*)
-        let api_key = match UpstreamClient::resolve_api_key(env, &account) {
-            Ok(key) => key,
-            Err(e) => {
-                // If key is missing in Cloudflare Secrets, disable account and try next
-                scheduler.report_permanent_auth_failure(&account.id, "Secret missing in Worker runtime");
-                last_error = e;
-                continue;
+        // Resolve API key: client header override or scheduler account pool
+        let client_override_key = req.headers().get("x-goog-api-key").ok().flatten().map(|s| s.trim().trim_matches('"').trim_matches('\'').trim().to_string());
+        let api_key = if let Some(ref custom_key) = client_override_key {
+            if !custom_key.is_empty() {
+                custom_key.clone()
+            } else {
+                match UpstreamClient::resolve_api_key(env, &account) {
+                    Ok(key) => key,
+                    Err(e) => {
+                        scheduler.report_permanent_auth_failure(&account.id, "Secret missing in Worker runtime");
+                        last_error = e;
+                        continue;
+                    }
+                }
+            }
+        } else {
+            match UpstreamClient::resolve_api_key(env, &account) {
+                Ok(key) => key,
+                Err(e) => {
+                    scheduler.report_permanent_auth_failure(&account.id, "Secret missing in Worker runtime");
+                    last_error = e;
+                    continue;
+                }
             }
         };
 
