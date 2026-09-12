@@ -7,12 +7,12 @@ compatibility_flags = ["nodejs_compat"]
 command = "worker-build --release"
 
 [vars]
-PRIMARY_MODEL = "gemini-3.8-flash"
+PRIMARY_MODEL = "gemini-2.5-flash"
 THINKING_LEVEL = "high"
-FORCE_MODEL = "true"
+FORCE_MODEL = "false"
 SMART_ROUTER_ENABLED = "true"
 BASE_PATH = "/v1"
-CONFIG_VERSION = "1"
+CONFIG_VERSION = "2"
 
 # Sensitive secrets must be configured via Cloudflare Dashboard or `wrangler secret put`:
 # - PROXY_TOKEN

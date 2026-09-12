@@ -46,23 +46,34 @@ pub struct ModelConfig {
 impl Default for ModelConfig {
     fn default() -> Self {
         let mut aliases = HashMap::new();
-        aliases.insert("auto".to_string(), "gemini-3.8-flash".to_string());
-        aliases.insert("gpt-4o".to_string(), "gemini-3.8-flash".to_string());
-        aliases.insert("gpt-4o-mini".to_string(), "gemini-3.5-flash-lite".to_string());
-        aliases.insert("gpt-4.1".to_string(), "gemini-3.8-flash".to_string());
-        aliases.insert("o1".to_string(), "gemini-3.8-flash".to_string());
-        aliases.insert("o3-mini".to_string(), "gemini-3.8-flash".to_string());
-        aliases.insert("claude-3-5-sonnet".to_string(), "gemini-3.8-flash".to_string());
-        aliases.insert("claude-3-7-sonnet".to_string(), "gemini-3.8-flash".to_string());
-        aliases.insert("deepseek-chat".to_string(), "gemini-3.8-flash".to_string());
-        aliases.insert("deepseek-reasoner".to_string(), "gemini-3.8-flash".to_string());
-        aliases.insert("gemini-3.5-flash-lite".to_string(), "gemini-3.5-flash-lite".to_string());
-        aliases.insert("gemini-3.8-flash".to_string(), "gemini-3.8-flash".to_string());
+        // Dynamic smart default
+        aliases.insert("auto".to_string(), "gemini-2.5-flash".to_string());
+
+        // OpenAI mapping
+        aliases.insert("gpt-4o".to_string(), "gemini-2.5-flash".to_string());
+        aliases.insert("gpt-4o-mini".to_string(), "gemini-2.0-flash-lite".to_string());
+        aliases.insert("gpt-4.1".to_string(), "gemini-2.5-flash".to_string());
+        aliases.insert("o1".to_string(), "gemini-2.5-pro".to_string());
+        aliases.insert("o3-mini".to_string(), "gemini-2.5-flash".to_string());
+
+        // Anthropic & DeepSeek mapping
+        aliases.insert("claude-3-5-sonnet".to_string(), "gemini-2.5-pro".to_string());
+        aliases.insert("claude-3-7-sonnet".to_string(), "gemini-2.5-pro".to_string());
+        aliases.insert("deepseek-chat".to_string(), "gemini-2.5-flash".to_string());
+        aliases.insert("deepseek-reasoner".to_string(), "gemini-2.5-pro".to_string());
+
+        // Native Google Gemini models pass-through
+        aliases.insert("gemini-2.5-flash".to_string(), "gemini-2.5-flash".to_string());
+        aliases.insert("gemini-2.5-pro".to_string(), "gemini-2.5-pro".to_string());
+        aliases.insert("gemini-2.0-flash".to_string(), "gemini-2.0-flash".to_string());
+        aliases.insert("gemini-2.0-flash-lite".to_string(), "gemini-2.0-flash-lite".to_string());
+        aliases.insert("gemini-1.5-flash".to_string(), "gemini-1.5-flash".to_string());
+        aliases.insert("gemini-1.5-pro".to_string(), "gemini-1.5-pro".to_string());
 
         Self {
-            primary: "gemini-3.8-flash".to_string(),
+            primary: "gemini-2.5-flash".to_string(),
             thinking_level: "high".to_string(),
-            force_model: true,
+            force_model: false,
             aliases,
         }
     }

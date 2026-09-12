@@ -2,7 +2,7 @@
 
 A production-grade, ultra-low-latency, universal **OpenAI-compatible API Gateway** built in **Rust** running globally at the edge on **Cloudflare Workers** (`workers-rs`).
 
-It acts as a resilient proxy connecting any AI client (**Cursor, Cline, Roo Code, Continue.dev, Aider, Windsurf, OpenAI SDK, LangChain**) to **Google Gemini API** (`gemini-3.8-flash` with native thinking & `gemini-3.5-flash-lite` with an automatic Smart Router).
+It acts as a resilient proxy connecting any AI client (**Cursor, Cline, Roo Code, Continue.dev, Aider, Windsurf, OpenAI SDK, LangChain**) to **Google Gemini API** (`gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-2.0-flash`, and `gemini-2.0-flash-lite` with an automatic Smart Router).
 
 Designed to be hosted publicly on GitHub with zero risk of secret leakage, multi-account rotation supporting 100–1,000+ API keys in a single secret, quota-domain isolation, first-byte safe retries, and zero-buffering SSE streaming.
 
@@ -37,10 +37,10 @@ Cloudflare Worker (Edge / Rust `workers-rs`)
       │      - Validates Bearer token using constant-time comparison
       │
       ├── 2. Smart Router & Task Classifier (Active)
-      │      - Automatically classifies user task using `gemini-3.5-flash-lite`
-      │      - EASY ➔ `gemini-3.5-flash-lite` (lightning fast, quota efficient)
-      │      - NORMAL ➔ `gemini-3.8-flash` (medium reasoning effort)
-      │      - HARD ➔ `gemini-3.8-flash` (native thinking = HIGH)
+      │      - Automatically classifies user task using `gemini-2.0-flash-lite`
+      │      - EASY ➔ `gemini-2.0-flash-lite` (lightning fast, quota efficient)
+      │      - NORMAL ➔ `gemini-2.5-flash` (balanced coding & reasoning)
+      │      - HARD ➔ `gemini-2.5-pro` (complex architecture & deep reasoning)
       │
       ├── 3. Account & Quota Scheduler (LRU + Quota Domain)
       │      - Rotates keys across accounts/projects
@@ -64,14 +64,16 @@ Cloudflare Worker (Edge / Rust `workers-rs`)
 
 ## Model & Smart Routing Policy
 
-- **Primary Model**: `gemini-3.8-flash` (GA September 2026, optimized for coding, debugging, architecture).
-- **Classifier & Lite Model**: `gemini-3.5-flash-lite` (Ultra-fast, up to 350 tokens/s).
+- **Primary Model**: `gemini-2.5-flash` (Google's flagship fast model, optimized for coding, debugging, reasoning).
+- **Pro Model**: `gemini-2.5-pro` (State-of-the-art coding and complex architecture reasoning).
+- **Lite Model**: `gemini-2.0-flash-lite` (Ultra-fast, cost & quota efficient).
+- **Workhorse Model**: `gemini-2.0-flash` (Next-gen fast multimodal).
 - **Supported Model Aliases** (automatically normalized):
-  - `auto` ➔ `gemini-3.8-flash`
-  - `gpt-4o`, `gpt-4.1`, `o1`, `o3-mini` ➔ `gemini-3.8-flash`
-  - `gpt-4o-mini` ➔ `gemini-3.5-flash-lite`
-  - `claude-3-5-sonnet`, `claude-3-7-sonnet` ➔ `gemini-3.8-flash`
-  - `deepseek-chat`, `deepseek-reasoner` ➔ `gemini-3.8-flash`
+  - `auto` ➔ `gemini-2.5-flash`
+  - `gpt-4o`, `gpt-4.1`, `o3-mini`, `deepseek-chat` ➔ `gemini-2.5-flash`
+  - `gpt-4o-mini` ➔ `gemini-2.0-flash-lite`
+  - `o1`, `claude-3-5-sonnet`, `claude-3-7-sonnet`, `deepseek-reasoner` ➔ `gemini-2.5-pro`
+  - Direct pass-through: `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-2.0-flash`, `gemini-2.0-flash-lite`, `gemini-1.5-flash`, `gemini-1.5-pro`
 
 ---
 
@@ -126,14 +128,14 @@ git push origin main
 2. Under **OpenAI API**:
    - **OpenAI API Key**: `<YOUR_PROXY_TOKEN>`
    - **Override OpenAI Base URL**: `https://gemini-openai-gateway.<subdomain>.workers.dev/v1`
-3. Add model: `gemini-3.8-flash` (or use `gpt-4o`).
+3. Add model: `gemini-2.5-flash` (or use `gpt-4o`).
 
 ### 2. Cline / Roo Code (VS Code Extension)
 1. Open Cline / Roo Code Settings.
 2. Select API Provider: **OpenAI Compatible**.
 3. **Base URL**: `https://gemini-openai-gateway.<subdomain>.workers.dev/v1`
 4. **API Key**: `<YOUR_PROXY_TOKEN>`
-5. **Model ID**: `gemini-3.8-flash` (or `auto`).
+5. **Model ID**: `gemini-2.5-flash` (or `auto`).
 
 ### 3. Continue.dev (`config.json`)
 ```json
@@ -142,7 +144,7 @@ git push origin main
     {
       "title": "Gemini 3.8 Flash (via Gateway)",
       "provider": "openai",
-      "model": "gemini-3.8-flash",
+      "model": "gemini-2.5-flash",
       "apiBase": "https://gemini-openai-gateway.<subdomain>.workers.dev/v1",
       "apiKey": "YOUR_PROXY_TOKEN"
     }
@@ -154,7 +156,7 @@ git push origin main
 ```bash
 export OPENAI_API_BASE=https://gemini-openai-gateway.<subdomain>.workers.dev/v1
 export OPENAI_API_KEY=YOUR_PROXY_TOKEN
-aider --model gemini-3.8-flash
+aider --model gemini-2.5-flash
 ```
 
 ### 5. OpenAI Python SDK
@@ -167,7 +169,7 @@ client = OpenAI(
 )
 
 response = client.chat.completions.create(
-    model="gemini-3.8-flash",
+    model="gemini-2.5-flash",
     messages=[{"role": "user", "content": "Write a high-performance Rust actor"}],
     stream=True,
 )
@@ -191,5 +193,5 @@ curl https://gemini-openai-gateway.<subdomain>.workers.dev/v1/models \
 curl -N https://gemini-openai-gateway.<subdomain>.workers.dev/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_PROXY_TOKEN" \
-  -d '{"model":"gemini-3.8-flash","messages":[{"role":"user","content":"Hi!"}],"stream":true}'
+  -d '{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"Hi!"}],"stream":true}'
 ```

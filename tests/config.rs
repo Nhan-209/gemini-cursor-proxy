@@ -6,9 +6,9 @@ fn test_default_config_values() {
 
     assert_eq!(cfg.server.base_path, "/v1");
     assert_eq!(cfg.server.max_body_bytes, 10_000_000);
-    assert_eq!(cfg.model.primary, "gemini-3.8-flash");
+    assert_eq!(cfg.model.primary, "gemini-2.5-flash");
     assert_eq!(cfg.model.thinking_level, "high");
-    assert!(cfg.model.force_model);
+    assert!(!cfg.model.force_model);
     assert_eq!(cfg.retry.max_attempts, 3);
     assert_eq!(cfg.cooldown.after_429_ms, 30_000);
     assert_eq!(cfg.accounts.len(), 20);
@@ -29,13 +29,13 @@ fn test_config_parsing_from_toml() {
         first_byte_timeout_ms = 25000
 
         [model]
-        primary = "gemini-3.8-flash"
+        primary = "gemini-2.5-flash"
         thinking_level = "high"
         force_model = true
 
         [model.aliases]
-        auto = "gemini-3.8-flash"
-        gpt-4o = "gemini-3.8-flash"
+        auto = "gemini-2.5-flash"
+        gpt-4o = "gemini-2.5-flash"
 
         [retry]
         max_attempts = 5

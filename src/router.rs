@@ -148,11 +148,11 @@ async fn handle_chat_completions(
                     }
                     crate::classifier::TaskDifficulty::Normal => {
                         req.model = config.smart_router.primary_model.clone();
-                        req.reasoning_effort = Some("medium".to_string());
+                        req.reasoning_effort = None;
                     }
                     crate::classifier::TaskDifficulty::Hard => {
-                        req.model = config.smart_router.primary_model.clone();
-                        req.reasoning_effort = Some("high".to_string());
+                        req.model = "gemini-2.5-pro".to_string();
+                        req.reasoning_effort = None;
                     }
                 }
                 req
@@ -249,6 +249,12 @@ async fn handle_chat_completions(
                         resp_headers.insert(k.to_lowercase(), v);
                     }
 
+                    let mut upstream_res = upstream_res;
+                    let error_body = upstream_res
+                        .text()
+                        .await
+                        .unwrap_or_else(|_| "Failed to read upstream body".to_string());
+
                     let classification = classify_upstream_response(status, &resp_headers, config.retry.retry_after_cap_ms);
 
                     // Structured logging of attempt failure
@@ -274,27 +280,31 @@ async fn handle_chat_completions(
                             scheduler.report_cooldown(&account.id, "429 Rate Limit", duration, crate::current_timestamp_ms(), "RATE_LIMIT_429");
                             last_error = GatewayError::UpstreamError {
                                 status: 429,
-                                message: format!("Upstream rate limit (429) on account {}", account.id),
+                                message: format!("Upstream rate limit (429) on account {}: {}", account.id, error_body),
                             };
                         }
                         crate::retry::ErrorClassification::RetryableServerError { status } => {
                             scheduler.report_cooldown(&account.id, "5xx Server Error", config.cooldown.after_5xx_ms, crate::current_timestamp_ms(), "SERVER_ERROR_5XX");
                             last_error = GatewayError::UpstreamError {
                                 status,
-                                message: format!("Upstream server error ({}) on account {}", status, account.id),
+                                message: format!("Upstream server error ({}) on account {}: {}", status, account.id, error_body),
                             };
                         }
-                        crate::retry::ErrorClassification::PermanentAuthError { status, message } => {
-                            scheduler.report_permanent_auth_failure(&account.id, &message);
-                            return Err(GatewayError::UpstreamError { status, message });
+                        crate::retry::ErrorClassification::PermanentAuthError { status, .. } => {
+                            let msg = format!("Upstream auth failure ({}): {}", status, error_body);
+                            scheduler.report_permanent_auth_failure(&account.id, &msg);
+                            return Err(GatewayError::UpstreamError { status, message: msg });
                         }
-                        crate::retry::ErrorClassification::PermanentClientError { status, message } => {
-                            return Err(GatewayError::UpstreamError { status, message });
+                        crate::retry::ErrorClassification::PermanentClientError { status, .. } => {
+                            return Err(GatewayError::UpstreamError {
+                                status,
+                                message: format!("Upstream returned HTTP {}: {}", status, error_body),
+                            });
                         }
                         _ => {
                             last_error = GatewayError::UpstreamError {
                                 status,
-                                message: format!("Upstream error ({}) on account {}", status, account.id),
+                                message: format!("Upstream error ({}) on account {}: {}", status, account.id, error_body),
                             };
                         }
                     }

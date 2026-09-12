@@ -42,43 +42,32 @@ pub struct ModelListResponse {
 
 pub fn normalize_request(mut req: ChatCompletionRequest, model_config: &ModelConfig) -> ChatCompletionRequest {
     // 1. Model Resolution & Normalization
-    let normalized_model = if model_config.force_model {
-        model_config.primary.clone()
-    } else if let Some(target) = model_config.aliases.get(&req.model) {
+    let normalized_model = if let Some(target) = model_config.aliases.get(&req.model) {
         target.clone()
-    } else {
+    } else if req.model.starts_with("gemini-") {
         req.model
+    } else if model_config.force_model {
+        model_config.primary.clone()
+    } else {
+        model_config.primary.clone()
     };
     req.model = normalized_model;
 
-    // 2. Thinking / Reasoning Normalization
-    // Native Gemini 3.8 reasoning_effort parameter ("high", "medium", "low", "none")
-    // If not specified or if forcing high reasoning, default to model_config.thinking_level
-    let reasoning = match req.reasoning_effort.as_deref() {
-        Some("high") | Some("medium") | Some("low") | Some("none") => {
-            if model_config.force_model {
-                model_config.thinking_level.clone()
-            } else {
-                req.reasoning_effort.unwrap()
-            }
-        }
-        _ => model_config.thinking_level.clone(),
-    };
-    req.reasoning_effort = Some(reasoning);
+    // 2. Google Gemini OpenAI compatibility endpoint does not accept reasoning_effort
+    // Setting it to None prevents upstream HTTP 400 unrecognized parameter errors
+    req.reasoning_effort = None;
 
     req
 }
 
 pub fn build_model_list(model_config: &ModelConfig) -> ModelListResponse {
     let now = 1_726_000_000; // Reference timestamp
-    let mut data = vec![
-        ModelItem {
-            id: model_config.primary.clone(),
-            object: "model".to_string(),
-            created: now,
-            owned_by: "google".to_string(),
-        },
-    ];
+    let mut data = vec![ModelItem {
+        id: model_config.primary.clone(),
+        object: "model".to_string(),
+        created: now,
+        owned_by: "google".to_string(),
+    }];
 
     for alias in model_config.aliases.keys() {
         if alias != &model_config.primary {
@@ -90,6 +79,8 @@ pub fn build_model_list(model_config: &ModelConfig) -> ModelListResponse {
             });
         }
     }
+
+    data.sort_by(|a, b| a.id.cmp(&b.id));
 
     ModelListResponse {
         object: "list".to_string(),
