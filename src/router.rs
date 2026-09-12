@@ -306,20 +306,19 @@ async fn handle_chat_completions(
                             };
                         }
                         crate::retry::ErrorClassification::PermanentAuthError { status, .. } => {
-                            let msg = format!("Upstream auth failure ({}): {}", status, error_body);
-                            scheduler.report_permanent_auth_failure(&account.id, &msg);
-                            return Err(GatewayError::UpstreamError { status, message: msg });
+                            scheduler.report_permanent_auth_failure(&account.id, &error_body);
+                            return Err(GatewayError::UpstreamError { status, message: error_body });
                         }
                         crate::retry::ErrorClassification::PermanentClientError { status, .. } => {
                             return Err(GatewayError::UpstreamError {
                                 status,
-                                message: format!("Upstream returned HTTP {}: {}", status, error_body),
+                                message: error_body,
                             });
                         }
                         _ => {
                             last_error = GatewayError::UpstreamError {
                                 status,
-                                message: format!("Upstream error ({}) on account {}: {}", status, account.id, error_body),
+                                message: error_body,
                             };
                         }
                     }
