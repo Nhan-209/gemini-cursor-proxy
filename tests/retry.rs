@@ -1,5 +1,5 @@
 use gemini_openai_gateway::retry::{
-    classify_upstream_response, parse_retry_after, ErrorClassification, FirstByteGuard,
+    classify_upstream_response, parse_retry_after, FirstByteGuard,
 };
 use std::collections::HashMap;
 

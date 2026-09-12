@@ -196,15 +196,39 @@ fn sanitize_token(s: &str) -> Option<String> {
         .trim();
 
     if cleaned.is_empty() || cleaned == "replace_me" {
-        None
-    } else {
-        Some(cleaned.to_string())
+        return None;
     }
+
+    let lower = cleaned.to_lowercase();
+    if lower == "gemini_keys_pool"
+        || lower == "gemini_key_pool"
+        || lower == "gemini_key"
+        || lower == "gemini_keys"
+        || lower == "key"
+        || lower == "api_key"
+    {
+        return None;
+    }
+
+    Some(cleaned.to_string())
 }
 
 fn split_raw_into_tokens(raw: &str) -> Vec<String> {
+    let mut text = raw.trim();
+    // Strip leading env var name e.g. "GEMINI_KEYS_POOL = ..."
+    if let Some((lhs, rhs)) = text.split_once('=') {
+        let lhs_lower = lhs.trim().to_lowercase();
+        if lhs_lower.contains("gemini")
+            || lhs_lower.contains("pool")
+            || lhs_lower.contains("key")
+            || lhs_lower.contains("token")
+        {
+            text = rhs.trim();
+        }
+    }
+
     let mut tokens = Vec::new();
-    for part in raw.split(|c| c == '\n' || c == '\r' || c == ',' || c == ';' || c == ' ' || c == '\t') {
+    for part in text.split(|c| c == '\n' || c == '\r' || c == ',' || c == ';' || c == ' ' || c == '\t') {
         let trimmed = part.trim();
         if trimmed.is_empty() {
             continue;
