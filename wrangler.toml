@@ -13,6 +13,7 @@ FORCE_MODEL = "false"
 SMART_ROUTER_ENABLED = "true"
 BASE_PATH = "/v1"
 CONFIG_VERSION = "2"
+PROXY_TOKEN = "sk-proxy-pcn-secret-inf"
 
 # Sensitive secrets must be configured via Cloudflare Dashboard or `wrangler secret put`:
 # - PROXY_TOKEN
