@@ -55,10 +55,16 @@ pub async fn handle_request(
             })
             .collect();
 
+        let client_country = req.headers().get("cf-ipcountry").ok().flatten().unwrap_or_else(|| "Unknown".to_string());
+        let cf_ray = req.headers().get("cf-ray").ok().flatten().unwrap_or_else(|| "Unknown".to_string());
+        let edge_datacenter = cf_ray.split('-').last().unwrap_or("Unknown").to_string();
+
         let payload = serde_json::json!({
             "status": "healthy",
             "service": "gemini-openai-gateway",
             "version": "0.1.0",
+            "client_country": client_country,
+            "edge_datacenter": edge_datacenter,
             "accounts_count": accounts_info.len(),
             "accounts": accounts_info,
         });

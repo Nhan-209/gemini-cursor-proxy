@@ -37,7 +37,7 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     let mut config = AppConfig::default();
     config.apply_env_overrides(&env);
 
-    // 2. Resolve accounts: prioritize GEMINI_KEYS_POOL (supports 100 - 1,000+ keys in one secret)
+    // 2. Resolve accounts: combine GEMINI_KEYS_POOL with discrete GEMINI_KEY_01..20
     let active_accounts: Vec<config::AccountConfig> = {
         let pool_names = [
             "GEMINI_KEYS_POOL",
@@ -48,33 +48,44 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             "GEMINI_KEY",
         ];
 
-        let mut found_pool: Option<String> = None;
+        let mut all_accounts = Vec::new();
+
         for name in pool_names {
             if let Ok(s) = env.secret(name) {
                 let v = s.to_string();
                 if !v.trim().is_empty() {
-                    found_pool = Some(v);
+                    let mut parsed = config::parse_keys_pool(&v);
+                    all_accounts.append(&mut parsed);
                     break;
                 }
             }
             if let Ok(v) = env.var(name) {
                 let s = v.to_string();
                 if !s.trim().is_empty() {
-                    found_pool = Some(s);
+                    let mut parsed = config::parse_keys_pool(&s);
+                    all_accounts.append(&mut parsed);
                     break;
                 }
             }
         }
 
-        if let Some(raw_pool) = found_pool {
-            let parsed = config::parse_keys_pool(&raw_pool);
-            if !parsed.is_empty() {
-                parsed
-            } else {
-                resolve_discrete_accounts(&config.accounts, &env)
-            }
+        let discrete = resolve_discrete_accounts(&config.accounts, &env);
+        for acc in discrete {
+            all_accounts.push(acc);
+        }
+
+        if all_accounts.is_empty() {
+            // Fallback to first 5 template accounts if nothing configured
+            config.accounts.iter().take(5).cloned().collect()
         } else {
-            resolve_discrete_accounts(&config.accounts, &env)
+            all_accounts
+                .into_iter()
+                .enumerate()
+                .map(|(idx, mut acc)| {
+                    acc.id = format!("acc_{:04}", idx + 1);
+                    acc
+                })
+                .collect()
         }
     };
 
@@ -89,21 +100,24 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
 }
 
 fn resolve_discrete_accounts(accounts: &[config::AccountConfig], env: &Env) -> Vec<config::AccountConfig> {
-    let configured: Vec<config::AccountConfig> = accounts
+    accounts
         .iter()
         .filter(|acc| {
             if !acc.enabled {
                 return false;
             }
-            env.secret(&acc.secret_name).is_ok() || env.var(&acc.secret_name).is_ok()
+            if let Ok(s) = env.secret(&acc.secret_name) {
+                let v = s.to_string();
+                let t = v.trim();
+                !t.is_empty() && t != "replace_me"
+            } else if let Ok(v) = env.var(&acc.secret_name) {
+                let s = v.to_string();
+                let t = s.trim();
+                !t.is_empty() && t != "replace_me"
+            } else {
+                false
+            }
         })
         .cloned()
-        .collect();
-
-    if configured.is_empty() {
-        // Fallback to first 5 accounts if secrets not yet populated
-        accounts.iter().take(5).cloned().collect()
-    } else {
-        configured
-    }
+        .collect()
 }
