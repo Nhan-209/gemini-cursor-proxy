@@ -28,8 +28,8 @@ impl Default for SmartRouterConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            classifier_model: "gemini-2.0-flash-lite".to_string(),
-            lite_model: "gemini-2.0-flash-lite".to_string(),
+            classifier_model: "gemini-3.5-flash-lite".to_string(),
+            lite_model: "gemini-3.5-flash-lite".to_string(),
             primary_model: "gemini-2.5-flash".to_string(),
             min_confidence: 0.6,
         }

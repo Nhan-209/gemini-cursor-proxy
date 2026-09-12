@@ -51,7 +51,7 @@ impl Default for ModelConfig {
 
         // OpenAI mapping
         aliases.insert("gpt-4o".to_string(), "gemini-2.5-flash".to_string());
-        aliases.insert("gpt-4o-mini".to_string(), "gemini-2.0-flash-lite".to_string());
+        aliases.insert("gpt-4o-mini".to_string(), "gemini-3.5-flash-lite".to_string());
         aliases.insert("gpt-4.1".to_string(), "gemini-2.5-flash".to_string());
         aliases.insert("o1".to_string(), "gemini-2.5-pro".to_string());
         aliases.insert("o3-mini".to_string(), "gemini-2.5-flash".to_string());
@@ -63,10 +63,11 @@ impl Default for ModelConfig {
         aliases.insert("deepseek-reasoner".to_string(), "gemini-2.5-pro".to_string());
 
         // Native Google Gemini models pass-through
+        aliases.insert("gemini-3.5-flash-lite".to_string(), "gemini-3.5-flash-lite".to_string());
         aliases.insert("gemini-2.5-flash".to_string(), "gemini-2.5-flash".to_string());
         aliases.insert("gemini-2.5-pro".to_string(), "gemini-2.5-pro".to_string());
         aliases.insert("gemini-2.0-flash".to_string(), "gemini-2.0-flash".to_string());
-        aliases.insert("gemini-2.0-flash-lite".to_string(), "gemini-2.0-flash-lite".to_string());
+        aliases.insert("gemini-2.0-flash-lite".to_string(), "gemini-3.5-flash-lite".to_string());
         aliases.insert("gemini-1.5-flash".to_string(), "gemini-1.5-flash".to_string());
         aliases.insert("gemini-1.5-pro".to_string(), "gemini-1.5-pro".to_string());
 

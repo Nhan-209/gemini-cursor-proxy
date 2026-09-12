@@ -37,8 +37,8 @@ Cloudflare Worker (Edge / Rust `workers-rs`)
       │      - Validates Bearer token using constant-time comparison
       │
       ├── 2. Smart Router & Task Classifier (Active)
-      │      - Automatically classifies user task using `gemini-2.0-flash-lite`
-      │      - EASY ➔ `gemini-2.0-flash-lite` (lightning fast, quota efficient)
+      │      - Automatically classifies user task using `gemini-3.5-flash-lite`
+      │      - EASY ➔ `gemini-3.5-flash-lite` (lightning fast, quota efficient)
       │      - NORMAL ➔ `gemini-2.5-flash` (balanced coding & reasoning)
       │      - HARD ➔ `gemini-2.5-pro` (complex architecture & deep reasoning)
       │
@@ -66,14 +66,14 @@ Cloudflare Worker (Edge / Rust `workers-rs`)
 
 - **Primary Model**: `gemini-2.5-flash` (Google's flagship fast model, optimized for coding, debugging, reasoning).
 - **Pro Model**: `gemini-2.5-pro` (State-of-the-art coding and complex architecture reasoning).
-- **Lite Model**: `gemini-2.0-flash-lite` (Ultra-fast, cost & quota efficient).
+- **Lite Model**: `gemini-3.5-flash-lite` (Ultra-fast, cost & quota efficient).
 - **Workhorse Model**: `gemini-2.0-flash` (Next-gen fast multimodal).
 - **Supported Model Aliases** (automatically normalized):
   - `auto` ➔ `gemini-2.5-flash`
   - `gpt-4o`, `gpt-4.1`, `o3-mini`, `deepseek-chat` ➔ `gemini-2.5-flash`
-  - `gpt-4o-mini` ➔ `gemini-2.0-flash-lite`
+  - `gpt-4o-mini` ➔ `gemini-3.5-flash-lite`
   - `o1`, `claude-3-5-sonnet`, `claude-3-7-sonnet`, `deepseek-reasoner` ➔ `gemini-2.5-pro`
-  - Direct pass-through: `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-2.0-flash`, `gemini-2.0-flash-lite`, `gemini-1.5-flash`, `gemini-1.5-pro`
+  - Direct pass-through: `gemini-3.5-flash-lite`, `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-2.0-flash`, `gemini-1.5-flash`, `gemini-1.5-pro`
 
 ---
 

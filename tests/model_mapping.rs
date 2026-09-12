@@ -71,7 +71,7 @@ fn test_alias_model_mapping() {
         max_completion_tokens: None,
         extra_fields: HashMap::new(),
     };
-    assert_eq!(normalize_request(req_mini, &cfg).model, "gemini-2.0-flash-lite");
+    assert_eq!(normalize_request(req_mini, &cfg).model, "gemini-3.5-flash-lite");
 }
 
 #[test]
@@ -105,5 +105,5 @@ fn test_build_model_list_contains_primary() {
     assert!(model_ids.contains(&"gemini-2.5-flash".to_string()));
     assert!(model_ids.contains(&"gemini-2.5-pro".to_string()));
     assert!(model_ids.contains(&"gemini-2.0-flash".to_string()));
-    assert!(model_ids.contains(&"gemini-2.0-flash-lite".to_string()));
+    assert!(model_ids.contains(&"gemini-3.5-flash-lite".to_string()));
 }
