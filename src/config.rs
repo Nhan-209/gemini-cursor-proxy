@@ -235,28 +235,54 @@ fn split_raw_into_tokens(raw: &str) -> Vec<String> {
         if trimmed.is_empty() {
             continue;
         }
-        // If a token still contains multiple AIza keys joined together (e.g. AIza...AIza...)
-        if trimmed.len() > 50 && trimmed.contains("AIza") {
+        // If a token still contains multiple keys joined together (e.g. AIza... or AQ....)
+        if trimmed.len() > 50 && (trimmed.contains("AIza") || trimmed.contains("AQ.")) {
             let mut remaining = trimmed;
-            while let Some(pos) = remaining.find("AIza") {
-                if pos > 0 {
-                    let before = &remaining[..pos];
-                    if let Some(t) = sanitize_token(before) {
-                        tokens.push(t);
+            while !remaining.is_empty() {
+                let next_aiza = remaining.find("AIza");
+                let next_aq = remaining.find("AQ.");
+                let next_start = match (next_aiza, next_aq) {
+                    (Some(a), Some(b)) => Some(a.min(b)),
+                    (Some(a), None) => Some(a),
+                    (None, Some(b)) => Some(b),
+                    (None, None) => None,
+                };
+
+                match next_start {
+                    Some(0) => {
+                        let rest = &remaining[3..];
+                        let next_delim = match (rest.find("AIza"), rest.find("AQ.")) {
+                            (Some(a), Some(b)) => Some(a.min(b)),
+                            (Some(a), None) => Some(a),
+                            (None, Some(b)) => Some(b),
+                            (None, None) => None,
+                        };
+                        if let Some(cut) = next_delim {
+                            let key = &remaining[..cut + 3];
+                            if let Some(t) = sanitize_token(key) {
+                                tokens.push(t);
+                            }
+                            remaining = &remaining[cut + 3..];
+                        } else {
+                            if let Some(t) = sanitize_token(remaining) {
+                                tokens.push(t);
+                            }
+                            break;
+                        }
                     }
-                }
-                remaining = &remaining[pos..];
-                if let Some(next_pos) = remaining[4..].find("AIza") {
-                    let key = &remaining[..next_pos + 4];
-                    if let Some(t) = sanitize_token(key) {
-                        tokens.push(t);
+                    Some(pos) => {
+                        let before = &remaining[..pos];
+                        if let Some(t) = sanitize_token(before) {
+                            tokens.push(t);
+                        }
+                        remaining = &remaining[pos..];
                     }
-                    remaining = &remaining[next_pos + 4..];
-                } else {
-                    if let Some(t) = sanitize_token(remaining) {
-                        tokens.push(t);
+                    None => {
+                        if let Some(t) = sanitize_token(remaining) {
+                            tokens.push(t);
+                        }
+                        break;
                     }
-                    break;
                 }
             }
         } else if let Some(t) = sanitize_token(trimmed) {

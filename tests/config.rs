@@ -6,7 +6,7 @@ fn test_default_config_values() {
 
     assert_eq!(cfg.server.base_path, "/v1");
     assert_eq!(cfg.server.max_body_bytes, 10_000_000);
-    assert_eq!(cfg.model.primary, "gemini-2.5-flash");
+    assert_eq!(cfg.model.primary, "gemini-3.8-flash");
     assert_eq!(cfg.model.thinking_level, "high");
     assert!(!cfg.model.force_model);
     assert_eq!(cfg.retry.max_attempts, 3);
@@ -127,4 +127,19 @@ fn test_parse_keys_pool_space_separated() {
     assert_eq!(accounts[0].direct_key.as_deref(), Some("AIzaSyKey1"));
     assert_eq!(accounts[1].direct_key.as_deref(), Some("AIzaSyKey2"));
     assert_eq!(accounts[2].direct_key.as_deref(), Some("AIzaSyKey3"));
+}
+
+#[test]
+fn test_parse_keys_pool_aq_prefix_keys() {
+    let raw = "AQ.MockTestKeySample00000000000000000000000000000000001, AQ.MockTestKeySample00000000000000000000000000000000002";
+    let accounts = gemini_openai_gateway::config::parse_keys_pool(raw);
+    assert_eq!(accounts.len(), 2);
+    assert_eq!(
+        accounts[0].direct_key.as_deref(),
+        Some("AQ.MockTestKeySample00000000000000000000000000000000001")
+    );
+    assert_eq!(
+        accounts[1].direct_key.as_deref(),
+        Some("AQ.MockTestKeySample00000000000000000000000000000000002")
+    );
 }
