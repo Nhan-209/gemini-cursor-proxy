@@ -21,7 +21,7 @@ fn test_force_model_maps_all_inputs_to_primary() {
         extra_fields: HashMap::new(),
     };
     let normalized1 = normalize_request(req1, &cfg);
-    assert_eq!(normalized1.model, "gemini-2.5-flash");
+    assert_eq!(normalized1.model, "gemini-3.8-flash");
 }
 
 #[test]
@@ -41,7 +41,7 @@ fn test_alias_model_mapping() {
         max_completion_tokens: None,
         extra_fields: HashMap::new(),
     };
-    assert_eq!(normalize_request(req_gpt4o, &cfg).model, "gemini-2.5-flash");
+    assert_eq!(normalize_request(req_gpt4o, &cfg).model, "gemini-3.8-flash");
 
     let req_claude = ChatCompletionRequest {
         model: "claude-3-7-sonnet".to_string(),
@@ -102,6 +102,7 @@ fn test_build_model_list_contains_primary() {
 
     assert_eq!(list.object, "list");
     let model_ids: Vec<String> = list.data.into_iter().map(|m| m.id).collect();
+    assert!(model_ids.contains(&"gemini-3.8-flash".to_string()));
     assert!(model_ids.contains(&"gemini-2.5-flash".to_string()));
     assert!(model_ids.contains(&"gemini-2.5-pro".to_string()));
     assert!(model_ids.contains(&"gemini-2.0-flash".to_string()));

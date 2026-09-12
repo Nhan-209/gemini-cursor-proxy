@@ -154,7 +154,10 @@ async fn handle_chat_completions(
     let is_streaming = chat_req.stream.unwrap_or(false);
 
     // 3. Smart Task Classification & Model Routing (Gemini 3.5 Flash-Lite Classifier)
-    let normalized_req = if config.smart_router.enabled {
+    let is_auto_route = chat_req.model.trim().is_empty()
+        || chat_req.model.trim().eq_ignore_ascii_case("auto");
+
+    let normalized_req = if config.smart_router.enabled && is_auto_route {
         let user_query = crate::classifier::SmartRouter::extract_user_query(&chat_req.messages);
         let classification = if !user_query.is_empty() {
             if let Ok(acc) = scheduler.select_account(crate::current_timestamp_ms()) {

@@ -64,16 +64,15 @@ Cloudflare Worker (Edge / Rust `workers-rs`)
 
 ## Model & Smart Routing Policy
 
-- **Primary Model**: `gemini-2.5-flash` (Google's flagship fast model, optimized for coding, debugging, reasoning).
+- **Primary Model**: `gemini-3.8-flash` (Google's intelligent workhorse model, optimized for long-horizon coding and agentic workflows).
 - **Pro Model**: `gemini-2.5-pro` (State-of-the-art coding and complex architecture reasoning).
 - **Lite Model**: `gemini-3.5-flash-lite` (Ultra-fast, cost & quota efficient).
-- **Workhorse Model**: `gemini-2.0-flash` (Next-gen fast multimodal).
 - **Supported Model Aliases** (automatically normalized):
-  - `auto` ➔ `gemini-2.5-flash`
-  - `gpt-4o`, `gpt-4.1`, `o3-mini`, `deepseek-chat` ➔ `gemini-2.5-flash`
+  - `auto` ➔ Smart Task Classifier (Easy ➔ `gemini-3.5-flash-lite`, Normal ➔ `gemini-3.8-flash`, Hard ➔ `gemini-2.5-pro`)
+  - `gpt-4o`, `gpt-4.1`, `o3-mini`, `deepseek-chat` ➔ `gemini-3.8-flash`
   - `gpt-4o-mini` ➔ `gemini-3.5-flash-lite`
   - `o1`, `claude-3-5-sonnet`, `claude-3-7-sonnet`, `deepseek-reasoner` ➔ `gemini-2.5-pro`
-  - Direct pass-through: `gemini-3.5-flash-lite`, `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-2.0-flash`, `gemini-1.5-flash`, `gemini-1.5-pro`
+  - Direct pass-through: `gemini-3.8-flash`, `gemini-3.5-flash-lite`, `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-2.0-flash`, `gemini-1.5-flash`, `gemini-1.5-pro`
 
 ---
 
