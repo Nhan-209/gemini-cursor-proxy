@@ -202,6 +202,44 @@ fn sanitize_token(s: &str) -> Option<String> {
     }
 }
 
+fn split_raw_into_tokens(raw: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    for part in raw.split(|c| c == '\n' || c == '\r' || c == ',' || c == ';' || c == ' ' || c == '\t') {
+        let trimmed = part.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        // If a token still contains multiple AIza keys joined together (e.g. AIza...AIza...)
+        if trimmed.len() > 50 && trimmed.contains("AIza") {
+            let mut remaining = trimmed;
+            while let Some(pos) = remaining.find("AIza") {
+                if pos > 0 {
+                    let before = &remaining[..pos];
+                    if let Some(t) = sanitize_token(before) {
+                        tokens.push(t);
+                    }
+                }
+                remaining = &remaining[pos..];
+                if let Some(next_pos) = remaining[4..].find("AIza") {
+                    let key = &remaining[..next_pos + 4];
+                    if let Some(t) = sanitize_token(key) {
+                        tokens.push(t);
+                    }
+                    remaining = &remaining[next_pos + 4..];
+                } else {
+                    if let Some(t) = sanitize_token(remaining) {
+                        tokens.push(t);
+                    }
+                    break;
+                }
+            }
+        } else if let Some(t) = sanitize_token(trimmed) {
+            tokens.push(t);
+        }
+    }
+    tokens
+}
+
 pub fn parse_keys_pool(raw: &str) -> Vec<AccountConfig> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
@@ -296,10 +334,9 @@ pub fn parse_keys_pool(raw: &str) -> Vec<AccountConfig> {
         }
     }
 
-    // 4. Otherwise parse as plain text (separated by newlines, commas, or semicolons)
-    trimmed
-        .split(|c| c == '\n' || c == '\r' || c == ',' || c == ';')
-        .filter_map(sanitize_token)
+    // 4. Otherwise parse as plain text (separated by newlines, commas, semicolons, spaces, tabs)
+    split_raw_into_tokens(trimmed)
+        .into_iter()
         .enumerate()
         .map(|(idx, key)| AccountConfig {
             id: format!("pool_{:04}", idx + 1),

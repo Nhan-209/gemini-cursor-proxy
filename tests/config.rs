@@ -118,3 +118,13 @@ fn test_parse_keys_pool_resilient_formats() {
     assert_eq!(accounts2.len(), 1);
     assert_eq!(accounts2[0].direct_key.as_deref(), Some("AIzaKeySingle"));
 }
+
+#[test]
+fn test_parse_keys_pool_space_separated() {
+    let raw = "AIzaSyKey1 AIzaSyKey2 AIzaSyKey3";
+    let accounts = gemini_openai_gateway::config::parse_keys_pool(raw);
+    assert_eq!(accounts.len(), 3);
+    assert_eq!(accounts[0].direct_key.as_deref(), Some("AIzaSyKey1"));
+    assert_eq!(accounts[1].direct_key.as_deref(), Some("AIzaSyKey2"));
+    assert_eq!(accounts[2].direct_key.as_deref(), Some("AIzaSyKey3"));
+}
